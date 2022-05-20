@@ -1,0 +1,5 @@
+# calibration bounds
+calib_bounds = pd.read_csv("bounds/model_input_variables_ce_demo.csv")
+calib_bounds = calib_bounds[["variable","min_35","max_35"]]
+SPACE = [skopt.space.Real(calib_bounds.loc[calib_bounds["variable"] == i, "min_35"].item(),calib_bounds.loc[calib_bounds["variable"] == i, "max_35"].item()+0.00001, prior='uniform') for i in calib_targets]
+

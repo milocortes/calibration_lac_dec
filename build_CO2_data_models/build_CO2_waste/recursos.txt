@@ -1,0 +1,12 @@
+https://www.sciencedirect.com/science/article/abs/pii/S0925231219308306
+https://towardsdatascience.com/synthetic-time-series-data-a-gan-approach-869a984f2239
+https://ieeexplore-ieee-org.pbidi.unam.mx:2443/stamp/stamp.jsp?tp=&arnumber=9679183
+
+#### TENSORFLOW PROBABILITY
+
+https://www.tensorflow.org/probability/api_docs/python/tfp/sts/MaskedTimeSeries
+https://stats.stackexchange.com/questions/533794/online-multivariate-time-series-imputation-forecasting-of-one-of-the-channels
+https://www.tensorflow.org/probability/examples/Structural_Time_Series_Modeling_Case_Studies_Atmospheric_CO2_and_Electricity_Demand
+https://www.tensorflow.org/probability/api_docs/python/tfp/sts/MaskedTimeSeries
+https://towardsdatascience.com/structural-time-series-forecasting-with-tensorflow-probability-iron-ore-mine-production-897d2334c72b
+https://blog.tensorflow.org/2019/03/structural-time-series-modeling-in.html#:~:text=TensorFlow%20Probability%20(TFP)%20now%20features,point%20forecasts%20and%20predictive%20uncertainties.
