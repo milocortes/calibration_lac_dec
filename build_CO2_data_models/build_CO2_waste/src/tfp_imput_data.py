@@ -8,7 +8,7 @@ gpus = tf.config.experimental.list_physical_devices('GPU')
 for gpu in gpus:
   tf.config.experimental.set_memory_growth(gpu, True)
 
-df = pd.read_csv("/home/milo/Documents/egap/descarbonizacion/data_imputation/data/waste_ts_data.csv")
+df = pd.read_csv("/home/milo/Documents/egtp/LAC-dec/calibration/build_CO2_data_models/build_CO2_waste/data/waste_ts_data.csv")
 df.fillna(np.nan,inplace=True)
 
 df_imputed_total = pd.DataFrame()
@@ -55,7 +55,7 @@ for country in df.columns:
         print("Execution fail. Country: {}".format(country))
 
 
-df_imputed_total.to_csv("/home/milo/Documents/egap/descarbonizacion/data_imputation/output/waste_ws_datos_imputados.csv",index=False)
+df_imputed_total.to_csv("/home/milo/Documents/egtp/LAC-dec/calibration/build_CO2_data_models/build_CO2_waste/output/waste_ws_datos_imputados.csv",index=False)
 
 """
 import matplotlib.pyplot as plt

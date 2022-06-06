@@ -2,6 +2,7 @@ argentina
 bahamas
 barbados
 belize
+bolivia
 brazil
 chile
 colombia
@@ -19,4 +20,7 @@ nicaragua
 panama
 paraguay
 peru
+suriname
+trinidad_and_tobago
 uruguay
+venezuela

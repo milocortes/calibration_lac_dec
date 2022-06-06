@@ -1,7 +1,7 @@
 import pandas as pd
 
-countries_list = ['argentina','bahamas','barbados','belize','brazil','chile','colombia','costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','haiti','honduras','jamaica','mexico','nicaragua','panama',
-     'paraguay','peru','uruguay']
+countries_list = ['argentina','bahamas','barbados','belize','bolivia','brazil','chile','colombia','costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','haiti','honduras','jamaica','mexico','nicaragua','panama','paraguay','peru','suriname','trinidad_and_tobago','uruguay','venezuela']
+
 
 year_init,year_end = 2006,2014
 

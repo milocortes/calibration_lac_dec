@@ -21,6 +21,14 @@ waste_co2.query("category == 'forecasted'",inplace=True)
 waste_co2.drop(columns=["category"],inplace=True)
 waste_co2["model"] = "CircularEconomy"
 
+# Add data to 
+# 2003,Suriname,21
+# 1990,Trinidad and Tobago,622
+# 1999,Venezuela (Bolivarian Republic of),6465
+waste_co2 = pd.concat([waste_co2, pd.DataFrame.from_dict({'year':range(1990,2019),'value' : [21] * 29, 'country' : ['suriname'] * 29, 'model' : ['CircularEconomy'] * 29})  ])
+waste_co2 = pd.concat([waste_co2, pd.DataFrame.from_dict({'year':range(1990,2019),'value' : [622] * 29 , 'country' : ['trinidad_and_tobago'] * 29, 'model' : ['CircularEconomy'] * 29})  ])
+waste_co2 = pd.concat([waste_co2, pd.DataFrame.from_dict({'year':range(1990,2019),'value' : [6465] * 29, 'country' : ['venezuela'] * 29, 'model' : ['CircularEconomy'] * 29})  ])
+
 pd_co2_all = pd.concat([pd_co2_all,afolu_co2,waste_co2])
 
 # replace bolivia name

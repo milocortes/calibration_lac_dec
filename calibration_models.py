@@ -163,17 +163,19 @@ for country in country_in_observed_data:
 
 # Add variable that change
 
-countries_list = ['argentina','bahamas','barbados','belize','brazil','chile','colombia',
- 'costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','haiti','honduras','jamaica','mexico','nicaragua','panama',
- 'paraguay','peru','uruguay']
+countries_list = ['argentina','bahamas','barbados','belize','bolivia','brazil','chile','colombia','costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','haiti','honduras','jamaica','mexico','nicaragua','panama','paraguay','peru','suriname','trinidad_and_tobago','uruguay','venezuela']
+## All countries
+# {'argentina','bahamas','barbados','belize','bolivia','brazil','chile','colombia','costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','haiti','honduras','jamaica','mexico','nicaragua','panama','paraguay','peru','suriname','trinidad_and_tobago','uruguay','venezuela'}
+
 
 for var in excluye:
     print("Adding {}".format(var))
     df_var_change = pd.read_csv("observed_data/{}.csv".format(var))
 
     for country in countries_list:
-        df_var_change_country = df_var_change.query("Nation == '{}'".format(country))
-        partial_df_input_data_countries.loc[partial_df_input_data_countries["country"]==country, var] = df_var_change_country[var].to_numpy()
+        if country != "venezuela":
+            df_var_change_country = df_var_change.query("Nation == '{}'".format(country))
+            partial_df_input_data_countries.loc[partial_df_input_data_countries["country"]==country, var] = df_var_change_country[var].to_numpy()
 
 
 df_input_data_countries = partial_df_input_data_countries
@@ -364,4 +366,4 @@ for k,cv,cv_test in zip(index_chunk,training_chunk,test_chunk):
 
 target_country = target_country.replace(" ","_")
 target_country = target_country.lower()
-pd_output_all.to_csv("output_calib/{}_cv_{}_mpi_{}.csv".format(models_run,target_country,comm.rank), index = None, encoding = "UTF-8")
+pd_output_all.to_csv("output_calib/{}/mpi_output/{}_cv_{}_mpi_{}.csv".format(models_run,models_run,target_country,comm.rank), index = None, encoding = "UTF-8")
