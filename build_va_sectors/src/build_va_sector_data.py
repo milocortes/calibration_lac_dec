@@ -46,11 +46,13 @@ industry_data.rename(columns = {'value':'va_industrial_mmm_usd'}, inplace = True
 #service_data.rename({'value':})
 mineria_data.rename(columns = {'value':'va_mining_mmm_usd'}, inplace = True)
 comercio_data.rename(columns = {'value':'va_commercial_mmm_usd'}, inplace = True)
+gdp_data.rename(columns = {'value':'gdp_mmm_usd'}, inplace = True)
 
 manu_data.to_csv("../../observed_data/va_manufacturing_mmm_usd.csv",index = False)
 industry_data.to_csv("../../observed_data/va_industrial_mmm_usd.csv",index = False)
 comercio_data.to_csv("../../observed_data/va_commercial_mmm_usd.csv",index = False)
 mineria_data.to_csv("../../observed_data/va_mining_mmm_usd.csv",index = False)
+gdp_data.to_csv("../../observed_data/gdp_mmm_usd.csv",index = False)
 
 
 

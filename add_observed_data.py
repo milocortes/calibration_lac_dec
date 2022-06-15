@@ -1,11 +1,13 @@
-
 ### time mpiexec  --oversubscribe -np 3 python calibration_models.py
 import os, os.path
 import numpy as np
 import pandas as pd
-from utils import *
+import sys
 
-os.chdir("lac_decarbonization/python")
+cwd = os.getcwd()
+
+sys.path.append(cwd + '/lac_decarbonization/python')
+
 import data_structures as ds
 import setup_analysis as sa
 import support_functions as sf
@@ -17,31 +19,23 @@ from model_afolu import AFOLU
 from model_circular_economy import CircularEconomy
 from model_ippu import IPPU
 
-import skopt
-from skopt import forest_minimize
-
-import itertools
-from mpi4py import MPI
-
+import glob
 import warnings
-import datetime
 
 warnings.filterwarnings("ignore")
-
-import glob
-
 
 # Load input data: fake_data_complete.csv
 df_input_data_path = os.path.join(sa.dir_ref, "fake_data", "fake_data_complete.csv")
 df_input_data = pd.read_csv(df_input_data_path)
 df_input_data = df_input_data.loc[0:8]
+
 # Set model to run
 models_run = "CircularEconomy"
 
 '''
  Which input file we will be using to iterate over the model?
 '''
-os.chdir("../..")
+#os.chdir("../..")
 # Load observed CO2 data
 df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/co2_all_models.csv")
 
@@ -58,6 +52,10 @@ all_params = df_input_data.columns
 calib_targets = df_calib_targets.query("model =='{}'".format(models_run))["calib_targets"]
 rest_parameters = list(set(all_params) -set(calib_targets))
 rest_parameters_df = df_input_data[rest_parameters]
+
+# calibration bounds
+calib_bounds = pd.read_csv("bounds/model_input_variables_ce_demo.csv")
+calib_bounds = calib_bounds[["variable","min_35","max_35"]]
 
 '''
 Add observed data to df_input_data
@@ -76,20 +74,14 @@ for country in all_countries_list:
 # Load csv for specific model
 #list_csv_obs_data =  [i.split("/")[-1][:-4] for i in glob.glob("observed_data/{}/*.csv".format(models_run))]
 list_csv_obs_data =  [i.split("/")[-1][:-4] for i in glob.glob("observed_data/*.csv".format(models_run))]
+excluye = ["gdp_mmm_usd","population_gnrl_rural","population_gnrl_urban","va_commercial_mmm_usd","va_industrial_mmm_usd","va_manufacturing_mmm_usd","va_mining_mmm_usd"]
 
-excluye = ["population_rural","population_urban","va_commercial_mmm_usd","va_industrial_mmm_usd","va_manufacturing_mmm_usd","va_mining_mmm_usd"]
 # Recollect observed data
-dic_validate_category = {"ww_industrial" : [], "frac_wali_ww_domestic_rural_treatment_path" : [], "frac_wali_ww_domestic_urban_treatment_path" : []}
+dic_validate_category = {"frac_wali_ww_domestic_rural_treatment_path" : list(all_params[["frac_wali_ww_domestic_rural_treatment_path" in i for i in all_params]]), "frac_wali_ww_domestic_urban_treatment_path" : list(all_params[["frac_wali_ww_domestic_urban_treatment_path" in i for i in all_params]])}
 
+#for i in list_csv_obs_data:
 for i in list(set(list_csv_obs_data) -set(excluye)):
     if i in rest_parameters:
-        if "ww_industrial" in i:
-            dic_validate_category["ww_industrial"].append(i)
-        if "frac_wali_ww_domestic_rural_treatment_path" in i:
-            dic_validate_category["frac_wali_ww_domestic_rural_treatment_path"].append(i)
-        if "frac_wali_ww_domestic_urban_treatment_path" in i:
-            dic_validate_category["frac_wali_ww_domestic_urban_treatment_path"].append(i)
-
         print("Adding {} data".format(i))
         #df_csv_obs_data = pd.read_csv("observed_data/{}/{}.csv".format(models_run,i))
         df_csv_obs_data = pd.read_csv("observed_data/{}.csv".format(i))
@@ -111,33 +103,39 @@ for i in list(set(list_csv_obs_data) -set(excluye)):
             for country in country_without_observed_data:
                 df_input_data_countries[i][df_input_data_countries['country'] == country] = mean_value_obs
 
-dic_validate_category["frac_wali_ww_domestic_rural_treatment_path"] += ["frac_wali_ww_domestic_rural_treatment_path_aerobic","frac_wali_ww_domestic_rural_treatment_path_anaerobic"]
-dic_validate_category["frac_wali_ww_domestic_urban_treatment_path"] += ["frac_wali_ww_domestic_urban_treatment_path_aerobic","frac_wali_ww_domestic_urban_treatment_path_anaerobic"]
 
 # Verify group values restrictions
 partial_df_input_data_countries = pd.DataFrame()
 
 for country in country_in_observed_data:
     country_partial_df_input_data_countries = df_input_data_countries.query("country =='{}'".format(country))
+
     for category,variables in dic_validate_category.items():
         total = sum(country_partial_df_input_data_countries[variables].loc[0])
-        for var in variables:
-            country_partial_df_input_data_countries[var] = country_partial_df_input_data_countries[var].apply(lambda x: x/total)
+        if total > 0:
+            for var in variables:
+                country_partial_df_input_data_countries[var] = country_partial_df_input_data_countries[var].apply(lambda x: x/total)
 
     partial_df_input_data_countries = pd.concat([partial_df_input_data_countries,country_partial_df_input_data_countries])
 
+
 # Add variable that change
 
-countries_list = ['argentina','bahamas','barbados','belize','brazil','chile','colombia',
- 'costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','haiti','honduras','jamaica','mexico','nicaragua','panama',
- 'paraguay','peru','uruguay']
+countries_list = ['argentina','bahamas','barbados','belize','bolivia','brazil','chile','colombia','costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','haiti','honduras','jamaica','mexico','nicaragua','panama','paraguay','peru','suriname','trinidad_and_tobago','uruguay','venezuela']
+## All countries
+# {'argentina','bahamas','barbados','belize','bolivia','brazil','chile','colombia','costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','haiti','honduras','jamaica','mexico','nicaragua','panama','paraguay','peru','suriname','trinidad_and_tobago','uruguay','venezuela'}
+
 
 for var in excluye:
     print("Adding {}".format(var))
     df_var_change = pd.read_csv("observed_data/{}.csv".format(var))
 
     for country in countries_list:
-        df_var_change_country = df_var_change.query("Nation == '{}'".format(country))
-        partial_df_input_data_countries.loc[partial_df_input_data_countries["country"]==country, var] = df_var_change_country[var].to_numpy()
+        if country != "venezuela":
+            df_var_change_country = df_var_change.query("Nation == '{}'".format(country))
+            partial_df_input_data_countries.loc[partial_df_input_data_countries["country"]==country, var] = df_var_change_country[var].to_numpy()
+
 
 df_input_data_countries = partial_df_input_data_countries
+
+df_input_data_countries.to_csv("all_countries_test_CalibrationModel_class.csv", index = False)
