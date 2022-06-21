@@ -17,15 +17,25 @@ df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/co2_all_models.
 # Load calib targets by model to run
 df_calib_targets =  pd.read_csv("build_CO2_data_models/output/df_calib_targets_models.csv")
 calib_targets = df_calib_targets.query("model == '{}'".format(models_run))["calib_targets"]
+# Load observed data
+observed_by_sector = pd.read_csv("observed_data/summary_observed_by_sector.csv")
+# Load all variables of sector
+all_by_sector = pd.read_csv("observed_data/all_variables_CircularEconomy.csv")
 
-#excluye_var_calib = ['frac_trww_nitrogen_removed_treated_anaerobic', 'frac_trww_nitrogen_removed_treated_latrine_unimproved', 'ef_trww_treated_anaerobic_g_n2o_per_g_n', 'frac_trww_tow_removed_treated_anaerobic', 'frac_trww_nitrogen_removed_treated_latrine_improved', 'mcf_trww_treated_anaerobic', 'frac_trww_nitrogen_removed_untreated_with_sewerage', 'physparam_krem_sludge_factor_treated_aerobic', 'frac_trww_nitrogen_removed_untreated_no_sewerage', 'ef_trww_treated_aerobic_g_n2o_per_g_n', 'mcf_trww_treated_aerobic', 'frac_trww_tow_removed_treated_aerobic', 'frac_trww_nitrogen_removed_treated_aerobic', 'frac_trww_nitrogen_removed_treated_septic']
+list_validate_category = list(all_by_sector["var"][["frac_wali_ww_domestic_rural_treatment_path" in i or "frac_wali_ww_domestic_urban_treatment_path" in i or "frac_wali_ww_industrial_treatment_path" in i for i in all_by_sector["var"]]])
 
-#calib_targets = list(set(calib_targets).difference(set(excluye_var_calib)))
+# Add to calib_targets the difference between all_by_sector and  calib_targets + observed_by_sector
+excluye = list(set(list(calib_targets)+list(observed_by_sector["observed_var"]) + list_validate_category))
+calib_05_150 = list(set(all_by_sector["var"]).difference(set(excluye)))
 
 # calibration bounds
 calib_bounds = pd.read_csv("bounds/model_input_variables_ce_demo.csv")
 calib_bounds = calib_bounds[["variable","min_35","max_35"]]
+calib_bounds = calib_bounds.query("min_35 != 1.00 and max_35 !=1.00")
+calib_bounds = calib_bounds[[False if i in ['gasrf_waso_biogas','oxf_waso_average_landfilled','elasticity_protein_in_diet_to_gdppc','frac_waso_compost_methane_flared','gasrf_waso_landfill_to_ch4']  else True for i in calib_bounds["variable"]]]
 
+calib_bounds = pd.concat([calib_bounds,pd.DataFrame.from_dict({'variable':calib_05_150 , 'min_35':[0.5]*len(calib_05_150),'max_35':[1.5]*len(calib_05_150)})])
+calib_targets = calib_bounds["variable"]
 # Define lower and upper time bounds
 year_init,year_end = 2006,2014
 

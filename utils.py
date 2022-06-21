@@ -4,6 +4,7 @@ import numpy as np
 from multiprocessing import Pool,cpu_count
 import time
 import pandas as pd
+import statsmodels.api as statsm
 
 # Load LAC-Decarbonization source
 import sys
@@ -188,7 +189,7 @@ class CalibrationModel(object):
     """docstring for CalibrationModel."""
 
     def __init__(self, df_input_var, country, subsector_model, calib_targets, df_calib_bounds, t_times,
-                 df_co2_emissions, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0):
+                 df_co2_emissions, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0,vector_waste = []):
         self.df_input_var = df_input_var
         self.country = country
         self.calib_targets = calib_targets
@@ -199,12 +200,14 @@ class CalibrationModel(object):
         self.cv_calibration = cv_calibration
         self.cv_training = cv_training
         self.cv_test = cv_test
-        self.var_co2_emissions_by_sector = {'CircularEconomy' : ["emission_co2e_subsector_total_wali","emission_co2e_subsector_total_waso","emission_co2e_subsector_total_trww"]}
+        self.var_co2_emissions_by_sector = {'CircularEconomy' : ["emission_co2e_subsector_total_wali","emission_co2e_subsector_total_waso","emission_co2e_subsector_total_trww"],
+                                            'IPPU': ['emission_co2e_subsector_total_ippu']}
         self.rest_parameters = list(set(df_input_var) -set(calib_targets))
         self.cv_run = cv_run
         self.id_mpi = id_mpi
-        self.fitness_values = {'CircularEconomy':[]}
-        self.best_vector = {'CircularEconomy':[]}
+        self.fitness_values = {'AFOLU' : [], 'CircularEconomy' : [], 'IPPU' : []}
+        self.best_vector = {'AFOLU' : None, 'CircularEconomy' : None, 'IPPU': None}
+        self.vector_waste = vector_waste
 
 
     """
@@ -224,10 +227,13 @@ class CalibrationModel(object):
     """
     def objective_a(self, params):
 
-        x_mean = self.df_input_var[self.calib_targets].iloc[self.cv_training].mean() * params
-        b1 = pd.DataFrame.from_dict({j:[i]*len(self.cv_training) for i,j in zip(x_mean,self.calib_targets)})
+        x_mean = self.df_input_var[self.calib_targets[:-1]].iloc[self.cv_training].mean() * params[:-1]
+        b1 = pd.DataFrame.from_dict({j:[i]*len(self.cv_training) for i,j in zip(x_mean,self.calib_targets[:-1])})
+
+        cycle, trend = statsm.tsa.filters.hpfilter(self.df_input_var[list(self.calib_targets)[-1]].iloc[self.cv_training], 1600)
+        df_gdp = pd.DataFrame.from_dict({list(self.calib_targets)[-1]: trend * list(params)[-1]})
         partial_rest_parameters_df = self.df_input_var[self.rest_parameters]
-        input_pivot =  pd.concat([b1.reset_index(drop=True), partial_rest_parameters_df], axis=1)
+        input_pivot =  pd.concat([b1.reset_index(drop=True), partial_rest_parameters_df,df_gdp], axis=1)
 
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
@@ -247,6 +253,7 @@ class CalibrationModel(object):
         #out_vars = df_model_data_project.columns[ ["emission_co2e" in i for i in  df_model_data_project.columns]]
         out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
         model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
+
         #cycle, trend = statsm.tsa.filters.hpfilter((calib["value"].values/1000), 1600)
         trend = self.df_co2_emissions.value
         trend = [i/1000 for i in trend]
@@ -292,10 +299,13 @@ class CalibrationModel(object):
     """
 
     def get_mse_test(self, params):
-        x_mean = self.df_input_var[self.calib_targets].iloc[self.cv_test].mean() * params
-        b1 = pd.DataFrame.from_dict({j:[i]*len(self.cv_test) for i,j in zip(x_mean,self.calib_targets)})
+        x_mean = self.df_input_var[self.calib_targets[:-1]].iloc[self.cv_training].mean() * params[:-1]
+        b1 = pd.DataFrame.from_dict({j:[i]*len(self.cv_training) for i,j in zip(x_mean,self.calib_targets[:-1])})
+
+        cycle, trend = statsm.tsa.filters.hpfilter(self.df_input_var[list(self.calib_targets)[-1]].iloc[self.cv_training], 1600)
+        df_gdp = pd.DataFrame.from_dict({list(self.calib_targets)[-1]: trend * list(params)[-1]})
         partial_rest_parameters_df = self.df_input_var[self.rest_parameters]
-        input_pivot =  pd.concat([b1.reset_index(drop=True), partial_rest_parameters_df], axis=1)
+        input_pivot =  pd.concat([b1.reset_index(drop=True), partial_rest_parameters_df,df_gdp], axis=1)
 
         if self.subsector_model == "AFOLU":
             print("\n\tAFOLU")
@@ -315,6 +325,7 @@ class CalibrationModel(object):
         #out_vars = df_model_data_project.columns[ ["emission_co2e" in i for i in  df_model_data_project.columns]]
         out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
         model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
+
         #cycle, trend = statsm.tsa.filters.hpfilter((calib["value"].values/1000), 1600)
         trend = self.df_co2_emissions.value
         trend = [i/1000 for i in trend]
@@ -343,10 +354,14 @@ class CalibrationModel(object):
     """
 
     def get_output_data(self, params):
-        x_mean = self.df_input_var[self.calib_targets].iloc[self.cv_test].mean() * params
-        b1 = pd.DataFrame.from_dict({j:[i]*len(self.cv_test) for i,j in zip(x_mean,self.calib_targets)})
+        x_mean = self.df_input_var[self.calib_targets[:-1]].iloc[self.cv_training].mean() * params[:-1]
+        b1 = pd.DataFrame.from_dict({j:[i]*len(self.cv_training) for i,j in zip(x_mean,self.calib_targets[:-1])})
+
+        cycle, trend = statsm.tsa.filters.hpfilter(self.df_input_var[list(self.calib_targets)[-1]].iloc[self.cv_training], 1600)
+        df_gdp = pd.DataFrame.from_dict({list(self.calib_targets)[-1]: trend * list(params)[-1]})
+
         partial_rest_parameters_df = self.df_input_var[self.rest_parameters]
-        input_pivot =  pd.concat([b1.reset_index(drop=True), partial_rest_parameters_df], axis=1)
+        input_pivot =  pd.concat([b1.reset_index(drop=True), partial_rest_parameters_df,df_gdp], axis=1)
 
         if self.subsector_model == "AFOLU":
             print("\n\tAFOLU")

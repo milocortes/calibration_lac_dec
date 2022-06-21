@@ -1,0 +1,8 @@
+prodinit_ippu_var:
+  prodinit_ippu_chemicals_tonne: [s17,s18]
+  prodinit_ippu_electronics_tonne: [s27]
+  prodinit_ippu_lime_and_carbonite_tonne: [s21]
+  prodinit_ippu_metals_tonne: [s22]
+  prodinit_ippu_paper_tonne: [s15]
+  prodinit_ippu_plastic_tonne: [s20]
+  prodinit_ippu_textiles_tonne: [s11]
