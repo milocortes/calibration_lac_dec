@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import *
+from calibration_lac import RunModel,CalibrationModel
 
 df_input_all_countries = pd.read_csv("all_countries_test_CalibrationModel_class.csv")
 
@@ -12,27 +12,12 @@ models_run = "CircularEconomy"
 df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/co2_all_models.csv")
 
 # Load calib targets by model to run
-df_calib_targets =  pd.read_csv("build_CO2_data_models/output/df_calib_targets_models.csv")
-calib_targets = df_calib_targets.query("model == '{}'".format(models_run))["calib_targets"]
-# Load observed data
-observed_by_sector = pd.read_csv("observed_data/summary_observed_by_sector.csv")
-# Load all variables of sector
-all_by_sector = pd.read_csv("observed_data/all_variables_CircularEconomy.csv")
 
-list_validate_category = list(all_by_sector["var"][["frac_wali_ww_domestic_rural_treatment_path" in i or "frac_wali_ww_domestic_urban_treatment_path" in i or "frac_wali_ww_industrial_treatment_path" in i for i in all_by_sector["var"]]])
+# Load calib targets by model to run
+df_calib_targets =  pd.read_csv("build_bounds/output/calib_bounds_sector.csv")
 
-# Add to calib_targets the difference between all_by_sector and  calib_targets + observed_by_sector
-excluye = list(set(list(calib_targets)+list(observed_by_sector["observed_var"]) + list_validate_category))
-calib_05_150 = list(set(all_by_sector["var"]).difference(set(excluye)))
-
-# calibration bounds
-calib_bounds = pd.read_csv("bounds/model_input_variables_ce_demo.csv")
-calib_bounds = calib_bounds[["variable","min_35","max_35"]]
-calib_bounds = calib_bounds.query("min_35 != 1.00 and max_35 !=1.00")
-calib_bounds = calib_bounds[[False if i in ['gasrf_waso_biogas','oxf_waso_average_landfilled','elasticity_protein_in_diet_to_gdppc','frac_waso_compost_methane_flared','gasrf_waso_landfill_to_ch4']  else True for i in calib_bounds["variable"]]]
-
-calib_bounds = pd.concat([calib_bounds,pd.DataFrame.from_dict({'variable':calib_05_150 , 'min_35':[0.5]*len(calib_05_150),'max_35':[1.5]*len(calib_05_150)})])
-calib_targets = calib_bounds["variable"]
+calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run))
+calib_targets = calib_bounds['variable']
 # Define lower and upper time bounds
 year_init,year_end = 2006,2014
 
@@ -58,7 +43,7 @@ for  target_country in countries_list:
     df_csv_all = pd.DataFrame()
     df_csv_all_mean = pd.DataFrame()
 
-    for i in range(8):
+    for i in range(2):
         df_csv = pd.read_csv(path_csv+"mpi_output/{}_cv_{}_mpi_{}.csv".format(models_run,target_country_ref,i))
         df_csv_all = pd.concat([df_csv_all,df_csv[calib_targets]])
         df_csv_all_mean = pd.concat([df_csv_all_mean,df_csv])

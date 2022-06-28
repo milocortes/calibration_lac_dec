@@ -24,6 +24,8 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+import statsmodels.api as statsm
+
 # Load input data: fake_data_complete.csv
 df_input_data_path = os.path.join(sa.dir_ref, "fake_data", "fake_data_complete.csv")
 df_input_data = pd.read_csv(df_input_data_path)
@@ -130,10 +132,18 @@ for var in excluye:
     print("Adding {}".format(var))
     df_var_change = pd.read_csv("observed_data/{}.csv".format(var))
 
-    for country in countries_list:
-        if country != "venezuela":
-            df_var_change_country = df_var_change.query("Nation == '{}'".format(country))
-            partial_df_input_data_countries.loc[partial_df_input_data_countries["country"]==country, var] = df_var_change_country[var].to_numpy()
+    if var != "gdp_mmm_usd":
+        for country in countries_list:
+            if country != "venezuela":
+                df_var_change_country = df_var_change.query("Nation == '{}'".format(country))
+                partial_df_input_data_countries.loc[partial_df_input_data_countries["country"]==country, var] = df_var_change_country[var].to_numpy()
+    else:
+        for country in countries_list:
+            if country != "venezuela":
+                df_var_change_country = df_var_change.query("Nation == '{}'".format(country))
+                cycle, trend = statsm.tsa.filters.hpfilter(df_var_change_country[var].to_numpy(), 1600)
+                partial_df_input_data_countries.loc[partial_df_input_data_countries["country"]==country, var] = trend
+
 
 
 df_input_data_countries = partial_df_input_data_countries

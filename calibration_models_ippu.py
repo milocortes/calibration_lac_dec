@@ -42,7 +42,7 @@ target_country = str(sys.argv[1])
 df_input_all_countries = pd.read_csv("all_countries_test_CalibrationModel_class.csv")
 
 # Set model to run
-models_run = "CircularEconomy"
+models_run = "IPPU"
 
 # Load observed CO2 data
 df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/co2_all_models.csv")
@@ -59,6 +59,12 @@ year_init,year_end = 2006,2014
 df_input_country = df_input_all_countries.query("country =='{}'".format(target_country)).reset_index().drop(columns=["index"])
 t_times = range(year_init, year_end+1)
 df_co2_observed_data = df_co2_observed_data.query("model == '{}' and country=='{}' and (year >= {} and year <= {} )".format(models_run,target_country,year_init,year_end))
+
+## Agregamos los vectores de calibración de CircularEconomy en clase Calubration
+calib_circecon = pd.read_csv("output_calib/CircularEconomy/calib_vector_circular_economy_all_countries.csv")
+calib_circecon_calib_targets = list(calib_circecon.columns[:-2])
+target_country_index = list(calib_circecon["country"]).index(target_country)
+calib_circecon_calib_vector = list(calib_circecon.iloc[target_country_index][:-2])
 
 # Define dataframe to save results
 pd_output_all = pd.DataFrame()
@@ -92,13 +98,18 @@ for k,cv,cv_test in zip(index_chunk,training_chunk,test_chunk):
 
     calibration = CalibrationModel(df_input_country, target_country, models_run,
                                 calib_targets, calib_bounds, t_times,
-                                df_co2_observed_data,cv_training = cv , cv_test = cv_test,cv_calibration = True, cv_run = k, id_mpi = comm.rank)
+                                df_co2_observed_data,cv_training = cv , cv_test = cv_test,
+                                cv_calibration = True, cv_run = k, id_mpi = comm.rank,
+                                downstream = True)
+
+    calibration.set_calib_targets('CircularEconomy',calib_circecon_calib_targets)
+    calibration.set_best_vector('CircularEconomy',calib_circecon_calib_vector)
     calibration.run_calibration("genetic_binary", population = 60, maxiter = 10)
 
-    mse_test = calibration.get_mse_test(calibration.best_vector["CircularEconomy"])
+    mse_test = calibration.get_mse_test(calibration.best_vector[models_run])
     print(" Cross Validation: {} on Node {}. MSE Test : {}".format(k,comm.rank,mse_test))
 
-    pd_output = pd.DataFrame.from_dict({target:[value] for target,value in zip(calib_targets,calibration.best_vector["CircularEconomy"])})
+    pd_output = pd.DataFrame.from_dict({target:[value] for target,value in zip(calib_targets,calibration.best_vector[models_run])})
     pd_output["nation"] = target_country
     pd_output["MSE_training"] = calibration.fitness_values[models_run][-1]
     pd_output["MSE_test"] = mse_test
