@@ -6,7 +6,7 @@ from calibration_lac import RunModel,CalibrationModel
 df_input_all_countries = pd.read_csv("all_countries_test_CalibrationModel_class.csv")
 
 # Define target country
-target_country = "brazil"
+target_country = "argentina"
 
 # Set model to run
 models_run = "IPPU"
@@ -31,7 +31,7 @@ calibration = CalibrationModel(df_input_country, target_country, models_run,
                                 calib_targets, calib_bounds, t_times,
                                 df_co2_observed_data,cv_training = [0,1,2,3,4,5,6,7,8] , cv_test = [1,3,5,7], cv_calibration = True)
 
-X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item() +0.01))  for i in calibration.calib_targets["IPPU"]]
+X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item()))  for i in calibration.calib_targets["IPPU"]]
 
 calibration.f(X)
 calibration.run_calibration("genetic_binary", population = 60, maxiter = 10)
@@ -73,7 +73,7 @@ model_ippu = sm.IPPU(sa.model_attributes)
 model_ippu.project(df_input_data)
 
 ## Agregamos los vectores de calibración de CircularEconomy en clase Calubration
-calib_circecon = pd.read_csv("/home/milo/Documents/egtp/LAC-dec/calibration/output_calib/CircularEconomy/calib_vector_circular_economy_all_countries.csv")
+calib_circecon = pd.read_csv("output_calib/CircularEconomy/calib_vector_circular_economy_all_countries.csv")
 calib_circecon_calib_targets = list(calib_circecon.columns[:-2])
 target_country_index = list(calib_circecon["country"]).index(target_country)
 calib_circecon_calib_vector = list(calib_circecon.iloc[target_country_index][:-2])
@@ -84,11 +84,8 @@ calibration = CalibrationModel(df_input_country, target_country, models_run,
                                 cv_test = [1,3,5,7],
                                 cv_calibration = True,
                                 downstream = True)
-                                
+
 calibration.set_calib_targets('CircularEconomy',calib_circecon_calib_targets)
 calibration.set_best_vector('CircularEconomy',calib_circecon_calib_vector)
 
 calibration.run_calibration("genetic_binary", population = 60, maxiter = 10)
-
-
-

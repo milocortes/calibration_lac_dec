@@ -136,3 +136,60 @@ def MUTACION(nueva_poblacion,length_total_cromosoma,n_variables,dimension_vec):
         inicio +=dimension_vec[gen]
 
     return nueva_poblacion_format
+
+class BinaryGenetic(object):
+    """docstring for BinaryGenetic."""
+
+    def __init__(self,population,n_variables,i_sup_vec,i_inf_vec,precision,maxiter):
+        self.m = population
+        self.n_variables = n_variables
+        self.i_sup_vec = i_sup_vec
+        self.i_inf_vec = i_inf_vec
+        self.precision = precision
+        self.maxiter = maxiter
+
+    def run_optimization(self,f):
+        dimension_vec = []
+        genotipo = []
+        length_total_cromosoma = 0
+
+        ## Generamos población inicial
+        for i in range(self.n_variables):
+            length_cromosoma = length_variable(self.i_sup_vec[i],self.i_inf_vec[i],self.precision)
+            length_total_cromosoma += length_cromosoma
+            dimension_vec.append(length_cromosoma)
+            genotipo.append(rand_population_binary(self.m, length_cromosoma))
+
+        ## Iniciamos el algoritmo genético
+        feno = DECODE(self.n_variables,self.m,self.i_sup_vec,self.i_inf_vec,dimension_vec,genotipo)
+        print("Evaluando poblacion inicial")
+        objv = OBJFUN(f,feno,False,1)
+
+        resultados = []
+        mejor_individuo = 0
+        mejor_valor = 100000000000000
+
+        fitness_values = []
+
+        for it in range(self.maxiter):
+            print("-----------------------------")
+            print(it)
+            print("-----------------------------")
+
+            aptitud = APTITUD(objv,"min")
+            seleccion = SELECCION(aptitud,"ruleta",self.n_variables,genotipo)
+            genotipo = CRUZA(seleccion,"unpunto",length_total_cromosoma)
+            genotipo = MUTACION(genotipo,length_total_cromosoma,self.n_variables,dimension_vec)
+            feno = DECODE(self.n_variables,self.m,self.i_sup_vec,self.i_inf_vec,dimension_vec,genotipo)
+            objv = OBJFUN(f,feno,False,1)
+            resultados.append(min(objv))
+            mejor_individuo = objv.index(min(objv))
+            #print("Mejor valor fun.obj ---> {}. Variables de decision ---> {}".format(objv[mejor_individuo],feno[mejor_individuo]))
+            #print("Mejor valor fun.obj ---> {}".format(objv[mejor_individuo]))
+            if objv[mejor_individuo] < mejor_valor:
+                mejor_valor = objv[mejor_individuo]
+                mejor_vector = feno[mejor_individuo]
+            fitness_values.append(mejor_valor)
+        best_vector = mejor_vector
+
+        return fitness_values, best_vector,mejor_valor

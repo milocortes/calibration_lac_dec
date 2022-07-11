@@ -108,7 +108,7 @@ class RunModel:
 
         var_change_over_time = self.calib_targets[self.subsector_model][self.df_calib_bounds["var_change_over_time"].apply(lambda x: bool(x))]
         var_no_change_over_time = list(np.setdiff1d(self.calib_targets[self.subsector_model],var_change_over_time))
-
+        '''
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
         index_var_no_change_over_time = list(np.setdiff1d(range(len(self.calib_targets[self.subsector_model])),index_var_change_over_time))
 
@@ -116,12 +116,15 @@ class RunModel:
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-
+        '''
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
+            df_input_data = self.df_input_var.copy()
+            df_input_data = df_input_data.iloc[self.cv_training]
+            df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]] = df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]].mean()*np.array(params[:len(params)-4])
+
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
-
         if self.subsector_model == "CircularEconomy":
             #print("\n\tRunning CircularEconomy")
             model_circular_economy = CircularEconomy(sa.model_attributes)
@@ -197,7 +200,8 @@ class CalibrationModel(RunModel):
         self.cv_training = cv_training
         self.cv_test = cv_test
         self.var_co2_emissions_by_sector = {'CircularEconomy' : ["emission_co2e_subsector_total_wali","emission_co2e_subsector_total_waso","emission_co2e_subsector_total_trww"],
-                                            'IPPU': ['emission_co2e_subsector_total_ippu']}
+                                            'IPPU': ['emission_co2e_subsector_total_ippu'],
+                                            'AFOLU' : ['emission_co2e_subsector_total_agrc','emission_co2e_subsector_total_frst','emission_co2e_subsector_total_lndu','emission_co2e_subsector_total_lvst']}
         self.cv_run = cv_run
         self.id_mpi = id_mpi
         self.fitness_values = {'AFOLU' : [], 'CircularEconomy' : [], 'IPPU' : []}
@@ -219,12 +223,13 @@ class CalibrationModel(RunModel):
 
     """
     def objective_a(self, params):
+
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
         var_change_over_time = self.calib_targets[self.subsector_model][self.df_calib_bounds["var_change_over_time"].apply(lambda x: bool(x))]
         var_no_change_over_time = list(np.setdiff1d(self.calib_targets[self.subsector_model],var_change_over_time))
-
+        '''
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
         index_var_no_change_over_time = list(np.setdiff1d(range(len(self.calib_targets[self.subsector_model])),index_var_change_over_time))
 
@@ -232,9 +237,13 @@ class CalibrationModel(RunModel):
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-
+        '''
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
+            df_input_data = self.df_input_var.copy()
+            df_input_data = df_input_data.iloc[self.cv_training]
+            df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]] = df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]].mean()*np.array(params[:len(params)-4])
+
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
 
@@ -273,7 +282,12 @@ class CalibrationModel(RunModel):
 
         #out_vars = df_model_data_project.columns[ ["emission_co2e" in i for i in  df_model_data_project.columns]]
         out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
-        model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
+
+        if self.subsector_model == "AFOLU":
+            model_data_co2e = (df_model_data_project[out_vars]*params[-4:]).sum(axis=1)
+        else:
+            model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
+
 
         #cycle, trend = statsm.tsa.filters.hpfilter((calib["value"].values/1000), 1600)
         trend = self.df_co2_emissions.value
@@ -320,12 +334,13 @@ class CalibrationModel(RunModel):
     """
 
     def get_mse_test(self, params):
+
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
         var_change_over_time = self.calib_targets[self.subsector_model][self.df_calib_bounds["var_change_over_time"].apply(lambda x: bool(x))]
         var_no_change_over_time = list(np.setdiff1d(self.calib_targets[self.subsector_model],var_change_over_time))
-
+        '''
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
         index_var_no_change_over_time = list(np.setdiff1d(range(len(self.calib_targets[self.subsector_model])),index_var_change_over_time))
 
@@ -333,9 +348,14 @@ class CalibrationModel(RunModel):
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-
+        '''
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
+            df_input_data = self.df_input_var.copy()
+            df_input_data = df_input_data.iloc[self.cv_training]
+
+            df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]] = df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]].mean()*np.array(params[:len(params)-4])
+
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
 
@@ -374,7 +394,12 @@ class CalibrationModel(RunModel):
 
         #out_vars = df_model_data_project.columns[ ["emission_co2e" in i for i in  df_model_data_project.columns]]
         out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
-        model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
+
+        if self.subsector_model == "AFOLU":
+            model_data_co2e = (df_model_data_project[out_vars]*params[-4:]).sum(axis=1)
+        else:
+            model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
+
 
         #cycle, trend = statsm.tsa.filters.hpfilter((calib["value"].values/1000), 1600)
         trend = self.df_co2_emissions.value
@@ -415,54 +440,14 @@ class CalibrationModel(RunModel):
             print("--------- Start Cross Validation: {} on Node {}. Model: {}".format(self.cv_run,self.id_mpi,self.subsector_model))
 
             n_variables = len(self.calib_targets[self.subsector_model])
-            i_sup_vec = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "max_35"].item() +0.01 for i in self.calib_targets[self.subsector_model]]
+            i_sup_vec = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "max_35"].item()  for i in self.calib_targets[self.subsector_model]]
             i_inf_vec = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "min_35"].item()  for i in self.calib_targets[self.subsector_model]]
             precision = 8
-            m = population
-            maxiter = maxiter
-            dimension_vec = []
-            genotipo = []
-            length_total_cromosoma = 0
 
-            ## Generamos población inicial
-            for i in range(n_variables):
-                length_cromosoma = length_variable(i_sup_vec[i],i_inf_vec[i],precision)
-                length_total_cromosoma += length_cromosoma
-                dimension_vec.append(length_cromosoma)
-                genotipo.append(rand_population_binary(m, length_cromosoma))
-
-            ## Iniciamos el algoritmo genético
-            feno = DECODE(n_variables,m,i_sup_vec,i_inf_vec,dimension_vec,genotipo)
-            print("Evaluando poblacion inicial")
-            objv = OBJFUN(self.f,feno,False,1)
-
-            resultados = []
-            mejor_individuo = 0
-            mejor_valor = 100000000
-
-            for it in range(maxiter):
-                print("-----------------------------")
-                print(it)
-                print("-----------------------------")
-
-                aptitud = APTITUD(objv,"min")
-                seleccion = SELECCION(aptitud,"ruleta",n_variables,genotipo)
-                genotipo = CRUZA(seleccion,"unpunto",length_total_cromosoma)
-                genotipo = MUTACION(genotipo,length_total_cromosoma,n_variables,dimension_vec)
-                feno = DECODE(n_variables,m,i_sup_vec,i_inf_vec,dimension_vec,genotipo)
-                objv = OBJFUN(self.f,feno,False,1)
-                resultados.append(min(objv))
-                mejor_individuo = objv.index(min(objv))
-                #print("Mejor valor fun.obj ---> {}. Variables de decision ---> {}".format(objv[mejor_individuo],feno[mejor_individuo]))
-                #print("Mejor valor fun.obj ---> {}".format(objv[mejor_individuo]))
-
-                if objv[mejor_individuo] < mejor_valor:
-                    mejor_valor = objv[mejor_individuo]
-                    mejor_vector = feno[mejor_individuo]
-                self.fitness_values[self.subsector_model].append(mejor_valor)
-            self.best_vector[self.subsector_model] = mejor_vector
+            binary_genetic = BinaryGenetic(population,n_variables,i_sup_vec,i_inf_vec,precision,maxiter)
+            self.fitness_values[self.subsector_model], self.best_vector[self.subsector_model] ,mejor_valor= binary_genetic.run_optimization(self.f)
 
             print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
             print(" Cross Validation: {} on Node {}. MSE Training : {}".format(self.cv_run ,self.id_mpi,mejor_valor))
-            mse_test = self.get_mse_test(mejor_vector)
+            mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
             print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))
