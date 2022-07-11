@@ -139,16 +139,17 @@ observed_data_afolu = observed_data.query("sector == 'AFOLU'")["variable"].to_li
 descarta = ['time_period','area_gnrl_country_ha','gdp_mmm_usd','va_commercial_mmm_usd','va_industrial_mmm_usd','va_manufacturing_mmm_usd','va_mining_mmm_usd','population_gnrl_rural','population_gnrl_urban']
 descarta +=['frac_agrc_initial_area_cropland_bevs_and_spices',
  'frac_agrc_initial_area_cropland_cereals',
- 'frac_agrc_initial_area_cropland_coffee',
  'frac_agrc_initial_area_cropland_fibers',
  'frac_agrc_initial_area_cropland_fruits',
- 'frac_agrc_initial_area_cropland_maize',
+ 'frac_agrc_initial_area_cropland_herbs_and_other_perennial_crops',
  'frac_agrc_initial_area_cropland_nuts',
- 'frac_agrc_initial_area_cropland_oil_bearing',
+ 'frac_agrc_initial_area_cropland_other_annual',
+ 'frac_agrc_initial_area_cropland_other_woody_perennial',
  'frac_agrc_initial_area_cropland_pulses',
  'frac_agrc_initial_area_cropland_rice',
+ 'frac_agrc_initial_area_cropland_sugar_cane',
  'frac_agrc_initial_area_cropland_tubers',
- 'frac_agrc_initial_area_cropland_vegetables'] + observed_data_afolu
+ 'frac_agrc_initial_area_cropland_vegetables_and_vines'] + observed_data_afolu
  
 afolu_calib_target = list(fake_afolu.columns[[not i in descarta for i in fake_afolu.columns]])
 afolu_subsector_calib = ['emission_co2e_subsector_total_agrc','emission_co2e_subsector_total_frst','emission_co2e_subsector_total_lndu','emission_co2e_subsector_total_lvst']
