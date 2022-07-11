@@ -106,7 +106,7 @@ CalibrationModel class
 
 El siguiente fragmento de código se encuentra en el programa ```test_AFOLU_class.py``` y muestra un ejemplo de la calibración para un país para el sector AFOLU:
 
-```
+```python
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
