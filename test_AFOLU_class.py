@@ -29,12 +29,13 @@ df_co2_observed_data = df_co2_observed_data.query("model == '{}' and country=='{
 
 calibration = CalibrationModel(df_input_country, target_country, models_run,
                                 calib_targets, calib_bounds, t_times,
-                                df_co2_observed_data,cv_training = [0,1,2,3,4,5,6,7,8] , cv_test = [1,3,5,7], cv_calibration = True)
+                                df_co2_observed_data,cv_training = [0,1,2,3,4,5,6,7,8] , 
+                                cv_test = [1,3,5,7], cv_calibration = True, weight_co2_flag = True)
 
 X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item()))  for i in calibration.calib_targets["AFOLU"]]
 
 calibration.f(X)
-calibration.run_calibration("genetic_binary", population = 60, maxiter = 20)
+calibration.run_calibration("genetic_binary", population = 60, maxiter = 10)
 plt.plot(calibration.fitness_values["AFOLU"])
 plt.show()
 

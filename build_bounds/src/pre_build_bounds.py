@@ -1,11 +1,18 @@
 import pandas as pd
 import numpy as np
-
+import yaml
 '''
 Read observed data
 '''
 
 observed_data = pd.read_csv("../../observed_data/resumen_variables_observadas.csv")
+
+'''
+Read CO2 sector weights
+'''
+with open(r'../data/weights_co2_sectors.yaml') as file:
+    weights_co2_sectors = yaml.load(file, Loader=yaml.FullLoader)
+
 
 '''
 # Build CircularEconomy target and bounds
@@ -36,37 +43,35 @@ calib_bounds = pd.concat([calib_bounds,pd.DataFrame.from_dict({'variable':calib_
 calib_bounds_ce = calib_bounds
 calib_bounds_ce['sector'] = "CircularEconomy"
 calib_bounds_ce['var_change_over_time'] = 0
+calib_bounds_ce['weight_co2'] = 0
 
 '''
 # Build IPPU target and bounds
 '''
 ## ef_ippu_tonne
-ef_ippu_tonne_list = ["ef_ippu_tonne_c2f6_per_mmm_gdp_product_use_ods_other",
-                     "ef_ippu_tonne_c2f6_per_tonne_production_electronics",
-                      "ef_ippu_tonne_c2h3f3_per_mmm_gdp_product_use_ods_refrigeration",
-                      "ef_ippu_tonne_c2hf5_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_c2hf5_per_mmm_gdp_product_use_ods_refrigeration",
-                      "ef_ippu_tonne_c2h3f3_per_mmm_gdp_product_use_ods_refrigeration",
-                      "ef_ippu_tonne_c2hf5_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_c2hf5_per_mmm_gdp_product_use_ods_refrigeration",
-                      "ef_ippu_tonne_c4h5f5_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_c5h2f10_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_c6f14_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_cc4f8_per_tonne_production_electronics",
-                      "ef_ippu_tonne_cf4_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_cf4_per_tonne_production_electronics",
-                      "ef_ippu_tonne_ch2f2_per_mmm_gdp_product_use_ods_refrigeration",
-                      "ef_ippu_tonne_ch2f2_per_tonne_production_electronics",
-                      "ef_ippu_tonne_ch3chf2_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_ch3chf2_per_mmm_gdp_product_use_ods_refrigeration",
-                      "ef_ippu_tonne_ch4_per_tonne_production_chemicals",
-                      "ef_ippu_tonne_ch4_per_tonne_production_metals",
-                      "ef_ippu_tonne_ch4_per_tonne_production_plastic",
-                      "ef_ippu_tonne_ch4_per_tonne_production_recycled_paper",
-                      "ef_ippu_tonne_chf2cf3_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_chf2cf3_per_mmm_gdp_product_use_ods_refrigeration",
-                      "ef_ippu_tonne_chf3_per_mmm_gdp_product_use_ods_other",
-                      "ef_ippu_tonne_chf3_per_mmm_gdp_product_use_ods_refrigeration"]
+ef_ippu_tonne_list = ['ef_ippu_tonne_c2f6_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_c2f6_per_tonne_production_electronics',
+                        'ef_ippu_tonne_c2h3f3_per_mmm_gdp_product_use_ods_refrigeration',
+                        'ef_ippu_tonne_c2hf5_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_c2hf5_per_mmm_gdp_product_use_ods_refrigeration',
+                        'ef_ippu_tonne_c4h5f5_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_c5h2f10_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_c6f14_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_cc4f8_per_tonne_production_electronics',
+                        'ef_ippu_tonne_cf4_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_cf4_per_tonne_production_electronics',
+                        'ef_ippu_tonne_ch2f2_per_mmm_gdp_product_use_ods_refrigeration',
+                        'ef_ippu_tonne_ch2f2_per_tonne_production_electronics',
+                        'ef_ippu_tonne_ch3chf2_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_ch3chf2_per_mmm_gdp_product_use_ods_refrigeration',
+                        'ef_ippu_tonne_ch4_per_tonne_production_chemicals',
+                        'ef_ippu_tonne_ch4_per_tonne_production_metals',
+                        'ef_ippu_tonne_ch4_per_tonne_production_plastic',
+                        'ef_ippu_tonne_chf2cf3_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_chf2cf3_per_mmm_gdp_product_use_ods_refrigeration',
+                        'ef_ippu_tonne_chf3_per_mmm_gdp_product_use_ods_other',
+                        'ef_ippu_tonne_chf3_per_mmm_gdp_product_use_ods_refrigeration']
+
 
 ef_ippu_tonne_list = list(set(ef_ippu_tonne_list))
 
@@ -128,6 +133,11 @@ calib_bounds = pd.concat([calib_bounds,calib_ef_ippu_tonne,calib_bounds_05_1_50]
 calib_bounds_ippu = calib_bounds
 calib_bounds_ippu['sector'] = 'IPPU'
 calib_bounds_ippu['var_change_over_time'] = [0]*(calib_bounds_ippu.shape[0]-1) + [1]
+calib_bounds_ippu['weight_co2'] = 0
+
+weights_co2_ippu = pd.DataFrame([(i,0,1, "IPPU", 0,1) for i in weights_co2_sectors["IPPU"]],columns=calib_bounds_ippu.columns)
+
+calib_bounds_ippu = pd.concat([calib_bounds_ippu,weights_co2_ippu])
 
 
 '''
@@ -152,13 +162,12 @@ descarta +=['frac_agrc_initial_area_cropland_bevs_and_spices',
  'frac_agrc_initial_area_cropland_vegetables_and_vines'] + observed_data_afolu
  
 afolu_calib_target = list(fake_afolu.columns[[not i in descarta for i in fake_afolu.columns]])
-afolu_subsector_calib = ['emission_co2e_subsector_total_agrc','emission_co2e_subsector_total_frst','emission_co2e_subsector_total_lndu','emission_co2e_subsector_total_lvst']
 
-calib_bounds_afolu = pd.DataFrame.from_dict({'variable' : afolu_calib_target + afolu_subsector_calib,
-                                             'min_35' : [0.01] * (len(afolu_calib_target) + len(afolu_subsector_calib)) ,
-                                             'max_35' : [2.0] * len(afolu_calib_target) + [1.0] * len(afolu_subsector_calib),
-                                             'sector' : ['AFOLU']*(len(afolu_calib_target) + len(afolu_subsector_calib)),
-                                             'var_change_over_time' : [0] * (len(afolu_calib_target) + len(afolu_subsector_calib))})
+calib_bounds_afolu = pd.DataFrame.from_dict({'variable' : afolu_calib_target ,
+                                             'min_35' : [0.01] * len(afolu_calib_target) ,
+                                             'max_35' : [2.0] * len(afolu_calib_target) ,
+                                             'sector' : ['AFOLU']*len(afolu_calib_target),
+                                             'var_change_over_time' : [0] * len(afolu_calib_target) })
 
 
 prefix_scalar_between_0_1 = ['frac_agrc_initial_area_cropland','frac_agrc_initial_yield_feed','frac_gnrl_eating_red_meat','frac_lndu_initial_','pij_lndu_croplands_to',
@@ -168,10 +177,18 @@ var_scalar_between_0_1 = []
 
 for prefijo in prefix_scalar_between_0_1:
     afolu_calib_target_np = np.array(afolu_calib_target)
-    var_scalar_between_0_1 += list(afolu_calib_target_np[[True if i.startswith(prefijo) else False for i in afolu_calib_target]])
+    var_scalar_between_0_1 += [i for i in afolu_calib_target if i.startswith(prefijo)]
 
 var_scalar_between_0_1 = [str(i) for i in var_scalar_between_0_1]
 calib_bounds_afolu.loc[calib_bounds_afolu["variable"].isin(var_scalar_between_0_1) ,'max_35'] = 1
+
+calib_bounds_afolu['weight_co2'] = 0
+
+weights_co2_afolu = pd.DataFrame([(i,0,1, "AFOLU", 0,1) for i in weights_co2_sectors["AFOLU"]],columns=calib_bounds_ippu.columns)
+
+calib_bounds_afolu = pd.concat([calib_bounds_afolu,weights_co2_afolu])
+
+
 '''
 Concat all sectors
 '''

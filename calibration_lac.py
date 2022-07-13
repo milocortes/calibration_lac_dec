@@ -106,23 +106,21 @@ class RunModel:
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
-        var_change_over_time = self.calib_targets[self.subsector_model][self.df_calib_bounds["var_change_over_time"].apply(lambda x: bool(x))]
-        var_no_change_over_time = list(np.setdiff1d(self.calib_targets[self.subsector_model],var_change_over_time))
-        '''
+        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1 and weight_co2==0")["variable"].to_list()
+        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0 and weight_co2==0")["variable"].to_list()
+        weight_co2 = self.df_calib_bounds.query("weight_co2==1")["variable"].to_list()
+        
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
-        index_var_no_change_over_time = list(np.setdiff1d(range(len(self.calib_targets[self.subsector_model])),index_var_change_over_time))
+        index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
+        index_weight_co2 = [list(self.calib_targets[self.subsector_model]).index(i) for i in weight_co2]
 
         df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-        '''
+        
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
-            df_input_data = self.df_input_var.copy()
-            df_input_data = df_input_data.iloc[self.cv_training]
-            df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]] = df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]].mean()*np.array(params[:len(params)-4])
-
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
         if self.subsector_model == "CircularEconomy":
@@ -192,7 +190,7 @@ class CalibrationModel(RunModel):
 
 
     def __init__(self, df_input_var, country, subsector_model, calib_targets, df_calib_bounds, t_times,
-                 df_co2_emissions, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0,downstream = False):
+                 df_co2_emissions, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0,downstream = False,weight_co2_flag = False):
         super(CalibrationModel, self).__init__(df_input_var, country, subsector_model, calib_targets,downstream = False)
         self.df_calib_bounds = df_calib_bounds
         self.df_co2_emissions = df_co2_emissions
@@ -201,10 +199,11 @@ class CalibrationModel(RunModel):
         self.cv_test = cv_test
         self.var_co2_emissions_by_sector = {'CircularEconomy' : ["emission_co2e_subsector_total_wali","emission_co2e_subsector_total_waso","emission_co2e_subsector_total_trww"],
                                             'IPPU': ['emission_co2e_subsector_total_ippu'],
-                                            'AFOLU' : ['emission_co2e_subsector_total_agrc','emission_co2e_subsector_total_frst','emission_co2e_subsector_total_lndu','emission_co2e_subsector_total_lvst']}
+                                            'AFOLU' : ['emission_co2e_subsector_total_agrc','emission_co2e_subsector_total_frst','emission_co2e_subsector_total_lndu','emission_co2e_subsector_total_lvst','emission_co2e_subsector_total_lsmm']}
         self.cv_run = cv_run
         self.id_mpi = id_mpi
         self.fitness_values = {'AFOLU' : [], 'CircularEconomy' : [], 'IPPU' : []}
+        self.weight_co2_flag = weight_co2_flag
 
 
     """
@@ -227,23 +226,21 @@ class CalibrationModel(RunModel):
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
-        var_change_over_time = self.calib_targets[self.subsector_model][self.df_calib_bounds["var_change_over_time"].apply(lambda x: bool(x))]
-        var_no_change_over_time = list(np.setdiff1d(self.calib_targets[self.subsector_model],var_change_over_time))
-        '''
+        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1 and weight_co2==0")["variable"].to_list()
+        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0 and weight_co2==0")["variable"].to_list()
+        weight_co2 = self.df_calib_bounds.query("weight_co2==1")["variable"].to_list()
+        
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
-        index_var_no_change_over_time = list(np.setdiff1d(range(len(self.calib_targets[self.subsector_model])),index_var_change_over_time))
+        index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
+        index_weight_co2 = [list(self.calib_targets[self.subsector_model]).index(i) for i in weight_co2]
 
         df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-        '''
+        
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
-            df_input_data = self.df_input_var.copy()
-            df_input_data = df_input_data.iloc[self.cv_training]
-            df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]] = df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]].mean()*np.array(params[:len(params)-4])
-
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
 
@@ -280,12 +277,16 @@ class CalibrationModel(RunModel):
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
-        #out_vars = df_model_data_project.columns[ ["emission_co2e" in i for i in  df_model_data_project.columns]]
-        out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
+        #out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
 
-        if self.subsector_model == "AFOLU":
-            model_data_co2e = (df_model_data_project[out_vars]*params[-4:]).sum(axis=1)
+        if self.weight_co2_flag:
+            out_vars = weight_co2
+            model_weight_co2 = np.array(params)[index_weight_co2]/sum(np.array(params)[index_weight_co2])
+            model_data_co2e = (df_model_data_project[out_vars]*model_weight_co2).sum(axis=1)
+            model_data_co2e = model_data_co2e + df_model_data_project[self.var_co2_emissions_by_sector[self.subsector_model]].sum(axis=1)
+
         else:
+            out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
             model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
 
 
@@ -338,24 +339,21 @@ class CalibrationModel(RunModel):
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
-        var_change_over_time = self.calib_targets[self.subsector_model][self.df_calib_bounds["var_change_over_time"].apply(lambda x: bool(x))]
-        var_no_change_over_time = list(np.setdiff1d(self.calib_targets[self.subsector_model],var_change_over_time))
-        '''
+        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1 and weight_co2==0")["variable"].to_list()
+        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0 and weight_co2==0")["variable"].to_list()
+        weight_co2 = self.df_calib_bounds.query("weight_co2==1")["variable"].to_list()
+        
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
-        index_var_no_change_over_time = list(np.setdiff1d(range(len(self.calib_targets[self.subsector_model])),index_var_change_over_time))
+        index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
+        index_weight_co2 = [list(self.calib_targets[self.subsector_model]).index(i) for i in weight_co2]
 
         df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-        '''
+        
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
-            df_input_data = self.df_input_var.copy()
-            df_input_data = df_input_data.iloc[self.cv_training]
-
-            df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]] = df_input_data[self.calib_targets[self.subsector_model][:len(self.calib_targets)-5]].mean()*np.array(params[:len(params)-4])
-
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
 
@@ -392,14 +390,17 @@ class CalibrationModel(RunModel):
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
-        #out_vars = df_model_data_project.columns[ ["emission_co2e" in i for i in  df_model_data_project.columns]]
-        out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
+        #out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
 
-        if self.subsector_model == "AFOLU":
-            model_data_co2e = (df_model_data_project[out_vars]*params[-4:]).sum(axis=1)
+        if self.weight_co2_flag:
+            out_vars = weight_co2
+            model_weight_co2 = np.array(params)[index_weight_co2]/sum(np.array(params)[index_weight_co2])
+            model_data_co2e = (df_model_data_project[out_vars]*model_weight_co2).sum(axis=1)
+            model_data_co2e = model_data_co2e + df_model_data_project[self.var_co2_emissions_by_sector[self.subsector_model]].sum(axis=1)
+
         else:
+            out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
             model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
-
 
         #cycle, trend = statsm.tsa.filters.hpfilter((calib["value"].values/1000), 1600)
         trend = self.df_co2_emissions.value
