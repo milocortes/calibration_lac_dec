@@ -36,7 +36,8 @@ for sector in sectores:
 # Recollect observed data
 dic_validate_category = {"frac_wali_ww_domestic_rural_treatment_path" : list(all_params[["frac_wali_ww_domestic_rural_treatment_path" in i for i in all_params]]),
                         "frac_wali_ww_domestic_urban_treatment_path" : list(all_params[["frac_wali_ww_domestic_urban_treatment_path" in i for i in all_params]]),
-                        "frac_agrc_initial_yield":list(all_params[["frac_agrc_initial_yield" in i for i in all_params]])}
+                        "frac_agrc_initial_yield":list(all_params[["frac_agrc_initial_yield" in i for i in all_params]]),
+                        "frac_agrc_initial_area_cropland" :list(all_params[["frac_agrc_initial_area_cropland" in i for i in all_params]])}
 
 #for i in list_csv_obs_data:
 resumen_observadas = pd.read_csv("observed_data/resumen_variables_observadas.csv")
@@ -112,5 +113,13 @@ for var in observed_data_change_over_time:
                 cycle, trend = statsm.tsa.filters.hpfilter(df_var_change_country[var].to_numpy(), 1600)
                 df_input_data_countries.loc[df_input_data_countries["country"]==country, var] = trend
 
+
+
+croplands = []
+for i in df_input_data_countries.columns:
+    if "frac_agrc_initial_area_cropland" in i:
+        croplands.append(i)
+
+df_input_data_countries[croplands] = df_input_data_countries[croplands].div(df_input_data_countries[croplands].sum(axis=1),axis=0)
 
 df_input_data_countries.to_csv("all_countries_test_CalibrationModel_class.csv", index = False)

@@ -43,7 +43,7 @@ calib_bounds = pd.concat([calib_bounds,pd.DataFrame.from_dict({'variable':calib_
 calib_bounds_ce = calib_bounds
 calib_bounds_ce['sector'] = "CircularEconomy"
 calib_bounds_ce['var_change_over_time'] = 0
-calib_bounds_ce['weight_co2'] = 0
+#calib_bounds_ce['weight_co2'] = 0
 
 '''
 # Build IPPU target and bounds
@@ -133,11 +133,10 @@ calib_bounds = pd.concat([calib_bounds,calib_ef_ippu_tonne,calib_bounds_05_1_50]
 calib_bounds_ippu = calib_bounds
 calib_bounds_ippu['sector'] = 'IPPU'
 calib_bounds_ippu['var_change_over_time'] = [0]*(calib_bounds_ippu.shape[0]-1) + [1]
-calib_bounds_ippu['weight_co2'] = 0
 
-weights_co2_ippu = pd.DataFrame([(i,0,1, "IPPU", 0,1) for i in weights_co2_sectors["IPPU"]],columns=calib_bounds_ippu.columns)
-
-calib_bounds_ippu = pd.concat([calib_bounds_ippu,weights_co2_ippu])
+#calib_bounds_ippu['weight_co2'] = 0
+#weights_co2_ippu = pd.DataFrame([(i,0,1, "IPPU", 0,1) for i in weights_co2_sectors["IPPU"]],columns=calib_bounds_ippu.columns)
+#calib_bounds_ippu = pd.concat([calib_bounds_ippu,weights_co2_ippu])
 
 
 '''
@@ -161,8 +160,8 @@ descarta +=['frac_agrc_initial_area_cropland_bevs_and_spices',
  'frac_agrc_initial_area_cropland_tubers',
  'frac_agrc_initial_area_cropland_vegetables_and_vines'] + observed_data_afolu
  
-afolu_calib_target = list(fake_afolu.columns[[not i in descarta for i in fake_afolu.columns]])
 
+afolu_calib_target = list(fake_afolu.columns[[not i in descarta for i in fake_afolu.columns]])
 calib_bounds_afolu = pd.DataFrame.from_dict({'variable' : afolu_calib_target ,
                                              'min_35' : [0.01] * len(afolu_calib_target) ,
                                              'max_35' : [2.0] * len(afolu_calib_target) ,
@@ -182,16 +181,24 @@ for prefijo in prefix_scalar_between_0_1:
 var_scalar_between_0_1 = [str(i) for i in var_scalar_between_0_1]
 calib_bounds_afolu.loc[calib_bounds_afolu["variable"].isin(var_scalar_between_0_1) ,'max_35'] = 1
 
-calib_bounds_afolu['weight_co2'] = 0
+#calib_bounds_afolu['weight_co2'] = 0
+#weights_co2_afolu = pd.DataFrame([(i,0,1, "AFOLU", 0,1) for i in weights_co2_sectors["AFOLU"]],columns=calib_bounds_ippu.columns)
+#calib_bounds_afolu = pd.concat([calib_bounds_afolu,weights_co2_afolu])
 
-weights_co2_afolu = pd.DataFrame([(i,0,1, "AFOLU", 0,1) for i in weights_co2_sectors["AFOLU"]],columns=calib_bounds_ippu.columns)
+predefined_afolu_vars = pd.read_csv("../data/predefined_data_vars.csv")
+predefined_afolu_vars = list(set(predefined_afolu_vars["file"]).difference(afolu_calib_target))
 
-calib_bounds_afolu = pd.concat([calib_bounds_afolu,weights_co2_afolu])
+calib_bounds_afolu_predefined = pd.DataFrame.from_dict({'variable' : predefined_afolu_vars ,
+                                             'min_35' : [0.5] * len(predefined_afolu_vars) ,
+                                             'max_35' : [1.5] * len(predefined_afolu_vars) ,
+                                             'sector' : ['AFOLU']*len(predefined_afolu_vars),
+                                             'var_change_over_time' : [1] * len(predefined_afolu_vars) })
 
+calib_bounds_afolu = pd.concat([calib_bounds_afolu,calib_bounds_afolu_predefined])
 
 '''
 Concat all sectors
 '''
 calib_bounds_sectors = pd.concat([calib_bounds_ce,calib_bounds_ippu,calib_bounds_afolu])
 
-calib_bounds_sectors.to_csv("../output/calib_bounds_sector.csv")
+calib_bounds_sectors.to_csv("../output/calib_bounds_sector.csv",index=False)

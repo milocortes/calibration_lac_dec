@@ -1,7 +1,8 @@
 import random
 import math
 import numpy as np
-from multiprocessing import Pool,cpu_count
+from multiprocessing import Pool,cpu_count, Array
+import ctypes
 
 
 # Genera población aleatoria binaria de m bit-string y cromosomas de tamaño n
@@ -173,7 +174,9 @@ class BinaryGenetic(object):
 
         for it in range(self.maxiter):
             print("-----------------------------")
-            print(it)
+            print("-%%%%%%%%%%%%%%%%%%%%%%%%%%%-")
+            print("        Iteración {}".format(it))
+            print("-%%%%%%%%%%%%%%%%%%%%%%%%%%%-")
             print("-----------------------------")
 
             aptitud = APTITUD(objv,"min")
@@ -193,3 +196,246 @@ class BinaryGenetic(object):
         best_vector = mejor_vector
 
         return fitness_values, best_vector,mejor_valor
+
+'''
+------------------------------------------
+                    DE
+Classic Differential Evolution
+
+-------------------------------------------
+## Implemented as a minimization algorithm
+
+# Inputs:
+    * f_cost        - function to be minimized
+    * pop_size      - number of individuals in the population
+    * max_iters     - maximum number of optimization iterations
+    * pc            - crossover probability
+    * lb
+    * ub
+    * step_size
+    * theta_0
+
+# Output
+    * best_theta    - best solution found
+    * best_score    - history of best score
+'''
+
+def DE(f_cost,pop_size,max_iters,pc,lb,ub,step_size = 0.4, theta_0 = None):
+    # problem dimension
+    n_dim = np.shape(lb)[0]
+    # randomly initialize the population
+    pop_chrom = (ub - lb) * np.random.random_sample(size = (pop_size,n_dim)) + lb
+
+    if theta_0 is not None:
+        pop_chrom[0] = theta_0
+    # obtain the cost of each solution
+    pop_cost = np.zeros(pop_size)
+
+    for id_p in range(pop_size):
+        pop_cost[id_p] = f_cost(pop_chrom[id_p])
+
+    # optimization
+    for id_iter in range(max_iters):
+        print("-----------------------------")
+        print("-%%%%%%%%%%%%%%%%%%%%%%%%%%%-")
+        print("        Iteración {}".format(id_iter))
+        print("-%%%%%%%%%%%%%%%%%%%%%%%%%%%-")
+        print("-----------------------------")
+
+        for id_pop in range(pop_size):
+            # pick candidate solution
+            xi = pop_chrom[id_pop]
+            # ids_cs vector containing the indexes of
+            # the all other candidate solution but xi
+            ids_cs = np.linspace(0, pop_size - 1, pop_size, dtype = int)
+            # remove id_pop from ids_cs
+            ids_cs = np.where(ids_cs != id_pop)
+            # convert tuple to ndarray
+            ids_cs = np.asarray(ids_cs)[0]
+            # randomly pick 3 candidate solution using indexes ids_cs
+            xa , xb , xc = pop_chrom[np.random.choice(ids_cs, 3, replace = False)]
+            V1 = xa
+            V2 = xb
+            Vb = xc
+            # create the difference vector
+            Vd = V1 - V2
+            # create the mutant vector
+            Vm = Vb + step_size*Vd
+            # make sure the mutant vector is in [lb,ub]
+            Vm = np.clip(Vm,lb,ub)
+            # create a trial vector by recombination
+            Vt = np.zeros(n_dim)
+            jr = np.random.rand()   # index of the dimension
+                                    # that will under crossover
+                                    # regardless of pc
+            for id_dim in range(n_dim):
+                rc = np.random.rand()
+                if rc < pc or id_dim == jr:
+                    # perform recombination
+                    Vt[id_dim] = Vm[id_dim]
+                else:
+                    # copy from Vb
+                    Vt[id_dim] = xi[id_dim]
+            # obtain the cost of the trial vector
+            vt_cost = f_cost(Vt)
+            # select the id_pop individual for the next generation
+            if vt_cost < pop_cost[id_pop]:
+                pop_chrom[id_pop] = Vt
+                pop_cost[id_pop] = vt_cost
+        # store minimum cost and best solution
+        ind_best = np.argmin(pop_cost)
+        if id_iter == 0:
+            minCost = [pop_cost[ind_best]]
+            bestSol = [pop_chrom[ind_best]]
+        else:
+            minCost = np.vstack((minCost,pop_cost[ind_best]))
+            bestSol = np.vstack((bestSol,pop_chrom[ind_best]))
+
+    # return values
+    ind_best_cost = np.argmin(minCost)
+    best_theta = bestSol[ind_best_cost]
+    best_score = minCost
+
+    return best_score.flatten() ,best_theta.flatten(),best_score[-1]
+
+
+'''
+------------------------------------------
+                    DE_par
+Paralell Classic Differential Evolution
+
+-------------------------------------------
+## Implemented as a minimization algorithm
+
+# Inputs:
+    * f_cost        - function to be minimized
+    * pop_size      - number of individuals in the population
+    * max_iters     - maximum number of optimization iterations
+    * pc            - crossover probability
+    * lb
+    * ub
+    * step_size
+    * theta_0
+
+# Output
+    * best_theta    - best solution found
+    * best_score    - history of best score
+'''
+
+
+
+
+def init_pool(main_nparray_chrom_par,main_nparray_cost_par):
+    global main_nparray_chrom
+    global main_nparray_cost
+
+    main_nparray_chrom = main_nparray_chrom_par
+    main_nparray_cost = main_nparray_cost_par
+
+def eval_de(arguments):
+    id_iter,id_pop,pc,n_dim,step_size,pop_size,lb,ub,f_cost = arguments
+    # pick candidate solution
+    xi = main_nparray_chrom[id_iter][id_pop]
+    # ids_cs vector containing the indexes of
+    # the all other candidate solution but xi
+    ids_cs = np.linspace(0, pop_size - 1, pop_size, dtype = int)
+    # remove id_pop from ids_cs
+    ids_cs = np.where(ids_cs != id_pop)
+    # convert tuple to ndarray
+    ids_cs = np.asarray(ids_cs)[0]
+    # randomly pick 3 candidate solution using indexes ids_cs
+    xa , xb , xc = main_nparray_chrom[id_iter][np.random.choice(ids_cs, 3, replace = False)]
+    V1 = xa
+    V2 = xb
+    Vb = xc
+    # create the difference vector
+    Vd = V1 - V2
+    # create the mutant vector
+    Vm = Vb + step_size*Vd
+    # make sure the mutant vector is in [lb,ub]
+    Vm = np.clip(Vm,lb,ub)
+    # create a trial vector by recombination
+    Vt = np.zeros(n_dim)
+    jr = np.random.rand()   # index of the dimension
+                            # that will under crossover
+                            # regardless of pc
+    for id_dim in range(n_dim):
+        rc = np.random.rand()
+        if rc < pc or id_dim == jr:
+            # perform recombination
+            Vt[id_dim] = Vm[id_dim]
+        else:
+            # copy from Vb
+            Vt[id_dim] = xi[id_dim]
+    # obtain the cost of the trial vector
+    vt_cost = f_cost(Vt)
+    # select the id_pop individual for the next generation
+    if vt_cost < main_nparray_cost[id_iter][id_pop]:
+        main_nparray_chrom[id_iter][id_pop] = Vt
+        main_nparray_cost[id_iter][id_pop] = vt_cost
+
+        
+def DE_par(f_cost,pop_size,max_iters,pc,lb,ub,step_size = 0.4, theta_0 = None):
+    # problem dimension
+    n_dim = np.shape(lb)[0]
+    # randomly initialize the population
+    pop_chrom = (ub - lb) * np.random.random_sample(size = (pop_size,n_dim)) + lb
+
+    if theta_0 is not None:
+        pop_chrom[0] = theta_0
+    
+    NBR_ITEMS_IN_ARRAY_CHROM = pop_size * max_iters * n_dim
+    NBR_ITEMS_IN_ARRAY_COST = pop_size * max_iters
+
+    # Create shared array by pop_chrom
+    shared_array_based = Array(ctypes.c_double,NBR_ITEMS_IN_ARRAY_CHROM,lock = False)
+    main_nparray_chrom = np.frombuffer(shared_array_based, dtype = ctypes.c_double)
+    main_nparray_chrom = main_nparray_chrom.reshape((max_iters,
+                                        pop_size,
+                                        n_dim))
+
+    main_nparray_chrom[0] = pop_chrom
+
+    # Create shared array by pop_cost
+    shared_array_based = Array(ctypes.c_double,NBR_ITEMS_IN_ARRAY_COST,lock = False)
+    main_nparray_cost = np.frombuffer(shared_array_based, dtype = ctypes.c_double)
+    main_nparray_cost = main_nparray_cost.reshape((max_iters,pop_size))
+    # obtain the cost of each solution
+    pop_cost = np.zeros(pop_size)
+
+    for id_p in range(pop_size):
+        pop_cost[id_p] = f_cost(pop_chrom[id_p])
+
+    main_nparray_cost[0] = pop_cost
+
+        # optimization
+    for tiempo in range(max_iters-1):
+        id_iter = 0
+        print("-----------------------------")
+        print("-%%%%%%%%%%%%%%%%%%%%%%%%%%%-")
+        print("        Iteración {}".format(tiempo))
+        print("-%%%%%%%%%%%%%%%%%%%%%%%%%%%-")
+        print("-----------------------------")
+
+        # start the MP pool for asynchronous parallelization
+        pool = Pool(int(cpu_count()/2),initializer=init_pool, initargs=(main_nparray_chrom,main_nparray_cost,))
+        pool.map(eval_de,[(id_iter,i,pc,n_dim,step_size,pop_size,lb,ub,f_cost) for i in range(pop_size)])
+        pool.close()
+        pool.join()
+        print(np.min(main_nparray_cost[0]))
+        # store minimum cost and best solution
+        ind_best = np.argmin(main_nparray_cost[id_iter])
+        if tiempo == 0:
+            minCost = [main_nparray_cost[id_iter][ind_best]]
+            bestSol = [main_nparray_chrom[id_iter][ind_best]]
+        else:
+            minCost = np.vstack((minCost,main_nparray_cost[id_iter][ind_best]))
+            bestSol = np.vstack((bestSol,main_nparray_chrom[id_iter][ind_best]))
+
+    # return values
+    ind_best_cost = np.argmin(minCost)
+    best_theta = bestSol[ind_best_cost]
+    best_score = minCost
+
+    print(best_score)
+    return best_score.flatten() ,best_theta.flatten(),best_score[-1]

@@ -106,13 +106,11 @@ class RunModel:
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
-        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1 and weight_co2==0")["variable"].to_list()
-        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0 and weight_co2==0")["variable"].to_list()
-        weight_co2 = self.df_calib_bounds.query("weight_co2==1")["variable"].to_list()
+        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
+        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
         
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
         index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
-        index_weight_co2 = [list(self.calib_targets[self.subsector_model]).index(i) for i in weight_co2]
 
         df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
 
@@ -190,7 +188,7 @@ class CalibrationModel(RunModel):
 
 
     def __init__(self, df_input_var, country, subsector_model, calib_targets, df_calib_bounds, t_times,
-                 df_co2_emissions, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0,downstream = False,weight_co2_flag = False):
+                 df_co2_emissions, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0,downstream = False,weight_co2_flag = False, weight_co2 = []):
         super(CalibrationModel, self).__init__(df_input_var, country, subsector_model, calib_targets,downstream = False)
         self.df_calib_bounds = df_calib_bounds
         self.df_co2_emissions = df_co2_emissions
@@ -199,11 +197,13 @@ class CalibrationModel(RunModel):
         self.cv_test = cv_test
         self.var_co2_emissions_by_sector = {'CircularEconomy' : ["emission_co2e_subsector_total_wali","emission_co2e_subsector_total_waso","emission_co2e_subsector_total_trww"],
                                             'IPPU': ['emission_co2e_subsector_total_ippu'],
-                                            'AFOLU' : ['emission_co2e_subsector_total_agrc','emission_co2e_subsector_total_frst','emission_co2e_subsector_total_lndu','emission_co2e_subsector_total_lvst','emission_co2e_subsector_total_lsmm']}
+                                            'AFOLU' : ['emission_co2e_subsector_total_agrc','emission_co2e_subsector_total_frst','emission_co2e_subsector_total_lndu','emission_co2e_subsector_total_lsmm',
+                                                        'emission_co2e_subsector_total_lvst','emission_co2e_subsector_total_soil']}
         self.cv_run = cv_run
         self.id_mpi = id_mpi
         self.fitness_values = {'AFOLU' : [], 'CircularEconomy' : [], 'IPPU' : []}
         self.weight_co2_flag = weight_co2_flag
+        self.weight_co2 = np.array(weight_co2)
 
 
     """
@@ -226,13 +226,11 @@ class CalibrationModel(RunModel):
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
-        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1 and weight_co2==0")["variable"].to_list()
-        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0 and weight_co2==0")["variable"].to_list()
-        weight_co2 = self.df_calib_bounds.query("weight_co2==1")["variable"].to_list()
+        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
+        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
         
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
         index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
-        index_weight_co2 = [list(self.calib_targets[self.subsector_model]).index(i) for i in weight_co2]
 
         df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
 
@@ -277,16 +275,13 @@ class CalibrationModel(RunModel):
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
-        #out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
+        out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
 
         if self.weight_co2_flag:
-            out_vars = weight_co2
-            model_weight_co2 = np.array(params)[index_weight_co2]/sum(np.array(params)[index_weight_co2])
             model_data_co2e = (df_model_data_project[out_vars]*model_weight_co2).sum(axis=1)
             model_data_co2e = model_data_co2e + df_model_data_project[self.var_co2_emissions_by_sector[self.subsector_model]].sum(axis=1)
 
         else:
-            out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
             model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
 
 
@@ -339,13 +334,11 @@ class CalibrationModel(RunModel):
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
-        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1 and weight_co2==0")["variable"].to_list()
-        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0 and weight_co2==0")["variable"].to_list()
-        weight_co2 = self.df_calib_bounds.query("weight_co2==1")["variable"].to_list()
+        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
+        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
         
         index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
         index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
-        index_weight_co2 = [list(self.calib_targets[self.subsector_model]).index(i) for i in weight_co2]
 
         df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
 
@@ -390,11 +383,9 @@ class CalibrationModel(RunModel):
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
-        #out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
+        out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
 
         if self.weight_co2_flag:
-            out_vars = weight_co2
-            model_weight_co2 = np.array(params)[index_weight_co2]/sum(np.array(params)[index_weight_co2])
             model_data_co2e = (df_model_data_project[out_vars]*model_weight_co2).sum(axis=1)
             model_data_co2e = model_data_co2e + df_model_data_project[self.var_co2_emissions_by_sector[self.subsector_model]].sum(axis=1)
 
@@ -414,28 +405,30 @@ class CalibrationModel(RunModel):
 
         return output
 
-    '''
-    ------------------------------------------
-
-    run_calibration method
-
-    -------------------------------------------
-
-    # Inputs:
-        * optimization_method       - Optimization method. Args: genetic_binary, differential_evolution, pso
-
-
-    # Output
-        * mse_all_period            - Mean Squared Error for all periods
-        * mse_training              - Mean Squared Error for training period
-        * mse_test                  - Mean Squared Error for test period
-        * calib_vector              - List of calibration scalar
-    '''
-
     def run_calibration(self,optimization_method,population, maxiter):
+        '''
+        ------------------------------------------
+
+        run_calibration method
+
+        -------------------------------------------
+
+        # Inputs:
+            * optimization_method       - Optimization method. Args: genetic_binary, differential_evolution,differential_evolution_parallel, pso
+
+
+        # Output
+            * mse_all_period            - Mean Squared Error for all periods
+            * mse_training              - Mean Squared Error for training period
+            * mse_test                  - Mean Squared Error for test period
+            * calib_vector              - List of calibration scalar
+        '''
+
         if optimization_method == "genetic_binary":
             # Optimize the function
-
+            print("------------------------------------------------")
+            print("         GENETIC BINARY      ")
+            print("------------------------------------------------")
             start_time = time.time()
 
             print("--------- Start Cross Validation: {} on Node {}. Model: {}".format(self.cv_run,self.id_mpi,self.subsector_model))
@@ -450,5 +443,74 @@ class CalibrationModel(RunModel):
 
             print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
             print(" Cross Validation: {} on Node {}. MSE Training : {}".format(self.cv_run ,self.id_mpi,mejor_valor))
+            mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
+            print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))
+
+        if optimization_method == "differential_evolution":
+            print("------------------------------------------------")
+            print("         DIFERENTIAL EVOLUTION      ")
+            print("------------------------------------------------")
+
+            start_time = time.time()
+
+            print("--------- Start Cross Validation: {} on Node {}. Model: {}".format(self.cv_run,self.id_mpi,self.subsector_model))
+
+            # 1 - Define the upper and lower bounds of the search space
+            n_dim =  len(self.calib_targets[self.subsector_model])              # Number of dimensions of the problem
+            lb = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "min_35"].item()  for i in self.calib_targets[self.subsector_model]]  # lower bound for the search space
+            ub =  [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "max_35"].item()  for i in self.calib_targets[self.subsector_model]] # upper bound for the search space
+            lb = np.array(lb)
+            ub = np.array(ub)
+
+            # 2 - Define the parameters for the optimization
+            max_iters = maxiter  # maximum number of iterations
+
+            # 3 - Parameters for the algorithm
+            pc = 0.7 # crossover probability
+            pop_size = population   # number of individuals in the population
+
+            # 4 - Define the cost function
+            f_cost = self.f
+
+            # 5 - Run the DE algorithm
+            # call DE
+            self.fitness_values[self.subsector_model], self.best_vector[self.subsector_model] ,mejor_valor = DE(f_cost,pop_size, max_iters,pc, lb, ub, step_size = 0.8)
+            print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
+            print(" Cross Validation: {} on Node {}. MSE Training : {}".format(self.cv_run ,self.id_mpi,mejor_valor[0]))
+            mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
+            print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))
+
+        if optimization_method == "differential_evolution_parallel":
+            
+            print("------------------------------------------------")
+            print("         PARALLEL DIFERENTIAL EVOLUTION      ")
+            print("------------------------------------------------")
+
+            start_time = time.time()
+
+            print("--------- Start Cross Validation: {} on Node {}. Model: {}".format(self.cv_run,self.id_mpi,self.subsector_model))
+
+            # 1 - Define the upper and lower bounds of the search space
+            n_dim =  len(self.calib_targets[self.subsector_model])              # Number of dimensions of the problem
+            lb = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "min_35"].item()  for i in self.calib_targets[self.subsector_model]]  # lower bound for the search space
+            ub =  [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "max_35"].item()  for i in self.calib_targets[self.subsector_model]] # upper bound for the search space
+            lb = np.array(lb)
+            ub = np.array(ub)
+
+            # 2 - Define the parameters for the optimization
+            max_iters = maxiter  # maximum number of iterations
+
+            # 3 - Parameters for the algorithm
+            pc = 0.7 # crossover probability
+            pop_size = population   # number of individuals in the population
+
+            # 4 - Define the cost function
+            f_cost = self.f
+
+            # 5 - Run the DE algorithm
+            # call DE
+            self.fitness_values[self.subsector_model], self.best_vector[self.subsector_model] ,mejor_valor = DE_par(f_cost,pop_size, max_iters,pc, lb, ub, step_size = 0.4)
+            print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
+            print(" Cross Validation: {} on Node {}. MSE Training : {}".format(self.cv_run ,self.id_mpi,mejor_valor[0]))
             mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
             print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))

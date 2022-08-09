@@ -1,5 +1,7 @@
 import sys
 import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
 
 sector = sys.argv[1]
 country = sys.argv[2]
@@ -16,6 +18,8 @@ observed_vars_sector = observed_vars_sector.query("sector=='{}'".format(sector))
 
 df_observed_vars = pd.read_csv("all_countries_test_CalibrationModel_class.csv")
 df_observed_vars.query("country =='{}'".format(country), inplace = True)
+ac_ratios = []
+ac_ratios_var = []
 
 for i in [x for x in observed_vars_sector if x in vars_sector]:
     print("Variable\n{}\n".format(i))
@@ -24,6 +28,15 @@ for i in [x for x in observed_vars_sector if x in vars_sector]:
     mean_observed_data = df_observed_vars[i].mean()
     print("         {}                               {}      \n".format(mean_fake_data,mean_observed_data))
     try:
-        print("Ratio between observed/fake     {}\n".format(mean_observed_data/mean_fake_data))
+        if mean_observed_data!= 0 and mean_fake_data!=0:
+            print("Ratio between observed/fake     {}\n".format(mean_observed_data/mean_fake_data))
+            ac_ratios.append(mean_observed_data/mean_fake_data)
+            ac_ratios_var.append((i,mean_observed_data/mean_fake_data))
     except:
         print("0 in fake variable")
+
+ac_ratios = np.array(ac_ratios)
+plt.hist(np.array(ac_ratios))
+plt.show() 
+
+np.where(ac_ratios >1000)
