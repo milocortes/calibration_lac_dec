@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import yaml
+
 '''
 Read observed data
 '''
@@ -144,61 +145,50 @@ calib_bounds_ippu['var_change_over_time'] = [0]*(calib_bounds_ippu.shape[0]-1) +
 '''
 
 fake_afolu = pd.read_csv("../../lac_decarbonization/ref/fake_data/fake_data_afolu.csv")
+afolu_all_var = list(fake_afolu.columns[2:])
+
 observed_data_afolu = observed_data.query("sector == 'AFOLU'")["variable"].to_list()
-descarta = ['time_period','area_gnrl_country_ha','gdp_mmm_usd','va_commercial_mmm_usd','va_industrial_mmm_usd','va_manufacturing_mmm_usd','va_mining_mmm_usd','population_gnrl_rural','population_gnrl_urban']
-descarta +=['frac_agrc_initial_area_cropland_bevs_and_spices',
- 'frac_agrc_initial_area_cropland_cereals',
- 'frac_agrc_initial_area_cropland_fibers',
- 'frac_agrc_initial_area_cropland_fruits',
- 'frac_agrc_initial_area_cropland_herbs_and_other_perennial_crops',
- 'frac_agrc_initial_area_cropland_nuts',
- 'frac_agrc_initial_area_cropland_other_annual',
- 'frac_agrc_initial_area_cropland_other_woody_perennial',
- 'frac_agrc_initial_area_cropland_pulses',
- 'frac_agrc_initial_area_cropland_rice',
- 'frac_agrc_initial_area_cropland_sugar_cane',
- 'frac_agrc_initial_area_cropland_tubers',
- 'frac_agrc_initial_area_cropland_vegetables_and_vines'] + observed_data_afolu
- 
 
-afolu_calib_target = list(fake_afolu.columns[[not i in descarta for i in fake_afolu.columns]])
-calib_bounds_afolu = pd.DataFrame.from_dict({'variable' : afolu_calib_target ,
-                                             'min_35' : [0.01] * len(afolu_calib_target) ,
-                                             'max_35' : [2.0] * len(afolu_calib_target) ,
-                                             'sector' : ['AFOLU']*len(afolu_calib_target),
-                                             'var_change_over_time' : [0] * len(afolu_calib_target) })
+observed_data_afolu_coincide = list(set(afolu_all_var).intersection(observed_data_afolu))
 
 
-prefix_scalar_between_0_1 = ['frac_agrc_initial_area_cropland','frac_agrc_initial_yield_feed','frac_gnrl_eating_red_meat','frac_lndu_initial_','pij_lndu_croplands_to',
-'pij_lndu_forests_mangroves_to','pij_lndu_forests_primary_to','pij_lndu_forests_secondary_to','pij_lndu_grasslands_to','pij_lndu_other_to_','pij_lndu_settlements_to','pij_lndu_wetlands_to','scalar_lvst_carrying_capacity']
+calib_afolu = pd.read_excel("../data/df_af_var_calib.xlsx",header = 2)
+calib_afolu = calib_afolu[(calib_afolu['Min Scalar']!=1) & (calib_afolu['Max Scalar']!=1)]
+calib_afolu = calib_afolu[(calib_afolu['Min Scalar']!=0) & (calib_afolu['Max Scalar']!=0)]
 
-var_scalar_between_0_1 = []
+calib_afolu.rename(columns = {'Variables scalar group (e.g, if applying a scalar to base value, the same scalar should be applied to these variables)':'groups'},inplace = True)
 
-for prefijo in prefix_scalar_between_0_1:
-    afolu_calib_target_np = np.array(afolu_calib_target)
-    var_scalar_between_0_1 += [i for i in afolu_calib_target if i.startswith(prefijo)]
+calib_afolu_groups = calib_afolu[calib_afolu["groups"].notnull()]
+calib_afolu_no_groups = calib_afolu[calib_afolu["groups"].isnull()]
 
-var_scalar_between_0_1 = [str(i) for i in var_scalar_between_0_1]
-calib_bounds_afolu.loc[calib_bounds_afolu["variable"].isin(var_scalar_between_0_1) ,'max_35'] = 1
 
-#calib_bounds_afolu['weight_co2'] = 0
-#weights_co2_afolu = pd.DataFrame([(i,0,1, "AFOLU", 0,1) for i in weights_co2_sectors["AFOLU"]],columns=calib_bounds_ippu.columns)
-#calib_bounds_afolu = pd.concat([calib_bounds_afolu,weights_co2_afolu])
+calib_bounds_afolu_groups = pd.DataFrame({'variable' : calib_afolu_groups["Variable"] ,
+                                             'min_35' : calib_afolu_groups["Min Scalar"],
+                                             'max_35' : calib_afolu_groups["Max Scalar"],
+                                             'sector' : ['AFOLU']*calib_afolu_groups.shape[0],
+                                             'var_change_over_time' : [0] *calib_afolu_groups.shape[0],
+                                             'group': calib_afolu_groups["groups"]}
+                                        )
 
-predefined_afolu_vars = pd.read_csv("../data/predefined_data_vars.csv")
-predefined_afolu_vars = list(set(predefined_afolu_vars["file"]).difference(afolu_calib_target))
+calib_bounds_afolu_no_groups = pd.DataFrame({'variable' : calib_afolu_no_groups["Variable"] ,
+                                             'min_35' : calib_afolu_no_groups["Min Scalar"],
+                                             'max_35' : calib_afolu_no_groups["Max Scalar"],
+                                             'sector' : ['AFOLU']*calib_afolu_no_groups.shape[0],
+                                             'var_change_over_time' : [0] *calib_afolu_no_groups.shape[0],
+                                             'group': [00]*calib_afolu_no_groups.shape[0]})
 
-calib_bounds_afolu_predefined = pd.DataFrame.from_dict({'variable' : predefined_afolu_vars ,
-                                             'min_35' : [0.5] * len(predefined_afolu_vars) ,
-                                             'max_35' : [1.5] * len(predefined_afolu_vars) ,
-                                             'sector' : ['AFOLU']*len(predefined_afolu_vars),
-                                             'var_change_over_time' : [1] * len(predefined_afolu_vars) })
+calib_bounds_afolu = pd.concat([calib_bounds_afolu_groups,calib_bounds_afolu_no_groups])
 
-calib_bounds_afolu = pd.concat([calib_bounds_afolu,calib_bounds_afolu_predefined])
+calib_bounds_afolu.sort_values("group",inplace = True)
+calib_bounds_afolu.reset_index(drop=True, inplace = True)
 
 '''
 Concat all sectors
 '''
+
+calib_bounds_ippu["group"] = 0
+calib_bounds_ce["group"] = 0
+
 calib_bounds_sectors = pd.concat([calib_bounds_ce,calib_bounds_ippu,calib_bounds_afolu])
 
 calib_bounds_sectors.to_csv("../output/calib_bounds_sector.csv",index=False)

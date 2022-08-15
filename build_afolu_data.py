@@ -19,8 +19,16 @@ df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/co2_all_models.
 # Load calib targets by model to run
 df_calib_targets =  pd.read_csv("build_bounds/output/calib_bounds_sector.csv")
 
-calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run))
-calib_targets = calib_bounds['variable']
+calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run)).reset_index(drop = True)
+
+calib_bounds_groups = calib_bounds.groupby("group")
+indices_params = list(calib_bounds_groups.groups[0])
+
+for i,j in calib_bounds_groups.groups.items():
+    if i!=0:
+        indices_params.append(j[0])
+
+calib_targets = calib_bounds['variable'].iloc[indices_params].reset_index(drop=True)
 
 # Define lower and upper time bounds
 year_init,year_end = 2011,2019
@@ -36,7 +44,32 @@ countries_list.remove("trinidad_and_tobago")
 countries_list.remove("honduras")
 countries_list.remove("peru")
 """
-countries_list = ['argentina','bahamas','barbados','belize','bolivia','brazil','costa_rica','dominican_republic','ecuador','el_salvador','guatemala','guyana','mexico','nicaragua','panama','paraguay','peru','suriname']
+countries_list = ['argentina',
+'bahamas',
+'barbados',
+'belize',
+'brazil',
+'bolivia',
+'chile',
+'colombia',
+'costa_rica',
+'dominican_republic',
+'ecuador',
+'el_salvador',
+'guatemala',
+'guyana',
+'haiti',
+'honduras',
+'jamaica',
+'mexico',
+'nicaragua',
+'panama',
+'paraguay',
+'peru',
+'suriname',
+'trinidad_and_tobago',
+'uruguay',
+'venezuela']
 
 
 t_times = range(year_init, year_end+1)
@@ -93,5 +126,23 @@ for  target_country in countries_list:
 
     df_afolu_all_countries = pd.concat([df_afolu_all_countries,df_afolu_country])
 
-df_csv_all_to_save.to_csv(path_csv+"calib_vector_afolu_all_countries.csv",index = False)
+
+df_csv_all_to_save_copia = df_csv_all_to_save.copy()
+agrupa = calib_bounds.groupby("group")
+group_list = calib_bounds["group"].unique()
+total_groups = len(group_list)
+
+for group in group_list:
+    group = int(group)
+    print(group)
+    if group == 0:
+        index_var_group = calib_bounds["variable"].iloc[agrupa.groups[group]]
+        df_csv_all_to_save_copia[index_var_group] =  df_csv_all_to_save_copia[index_var_group]
+    else:
+        index_var_group = calib_bounds["variable"].iloc[agrupa.groups[group]]
+        for col in index_var_group:
+            df_csv_all_to_save_copia[col] =  df_csv_all_to_save_copia[index_var_group.iloc[0]]
+
+
+df_csv_all_to_save_copia.to_csv(path_csv+"calib_vector_afolu_all_countries.csv",index = False)
 df_afolu_all_countries.to_csv(path_csv+"cv_results_afolu_all_countries.csv",index = False)

@@ -21,8 +21,16 @@ df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/co2_all_models.
 # Load calib targets by model to run
 df_calib_targets =  pd.read_csv("build_bounds/output/calib_bounds_sector.csv")
 
-calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run))
-calib_targets = calib_bounds['variable']
+calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run)).reset_index(drop = True)
+
+calib_bounds_groups = calib_bounds.groupby("group")
+indices_params = list(calib_bounds_groups.groups[0])
+
+for i,j in calib_bounds_groups.groups.items():
+    if i!=0:
+        indices_params.append(j[0])
+
+calib_targets = calib_bounds['variable'].iloc[indices_params].reset_index(drop=True)
 
 # Define lower and upper time bounds
 year_init,year_end = 2011,2019
@@ -39,7 +47,7 @@ calibration = CalibrationModel(df_input_country, target_country, models_run,
 X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item()))  for i in calibration.calib_targets["AFOLU"]]
 
 calibration.f(X)
-calibration.run_calibration("differential_evolution", population = 40, maxiter = 20)
+calibration.run_calibration("genetic_binary", population = 100, maxiter = 30)
 plt.plot(calibration.fitness_values["AFOLU"])
 plt.show()
 
@@ -53,65 +61,17 @@ plt.legend()
 plt.show()
 
 
-#### TEST BOUND OPTIMIZATION
+import json
 
 
-start_time = time.time()
+AFOLU_fao_correspondence = json.load(open("build_CO2_data_models/FAO_correspondence/AFOLU_fao_correspondence.json", "r"))
+item_val_afolu = {}
+for item, vars in AFOLU_fao_correspondence.items():
+    if vars:
+        item_val_afolu[item] = output_data[vars].sum(1).to_list()
 
+for item,values in item_val_afolu.items():
+    plt.plot(values,label = item)
+    leg = plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-def min_bounds(X):
-    calib_bounds_genetic_co2 = calib_bounds.query("weight_co2==1")
-    calib_bounds_genetic_vars = calib_bounds.query("weight_co2==0")
-
-
-print("--------- Start Cross Validation: {} on Node {}. Model: {}".format(self.cv_run,self.id_mpi,self.subsector_model))
-
-
-n_variables = len(self.calib_targets[self.subsector_model])
-i_sup_vec = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "max_35"].item()  for i in self.calib_targets[self.subsector_model]]
-i_inf_vec = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "min_35"].item()  for i in self.calib_targets[self.subsector_model]]
-precision = 8
-
-binary_genetic = BinaryGenetic(population,n_variables,i_sup_vec,i_inf_vec,precision,maxiter)
-self.fitness_values[self.subsector_model], self.best_vector[self.subsector_model] ,mejor_valor= binary_genetic.run_optimization(self.f)
-
-print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
-
-
-
-all_countries = ['argentina',
-'bahamas',
-'barbados',
-'belize',
-'bolivia',
-'brazil',
-'chile',
-'colombia',
-'costa_rica',
-'dominican_republic',
-'ecuador',
-'el_salvador',
-'guatemala',
-'guyana',
-'haiti',
-'honduras',
-'jamaica',
-'mexico',
-'nicaragua',
-'panama',
-'paraguay',
-'peru',
-'suriname',
-'trinidad_and_tobago',
-'uruguay',
-'venezuela']
-
-df_acumula = pd.DataFrame()
-
-for target_country in all_countries:
-    print(target_country)
-    df_input_country = df_input_all_countries.query("country =='{}'".format(target_country)).reset_index().drop(columns=["index"])
-    model_socio = Socioeconomic(sa.model_attributes)
-    df_project, df_growth_rates = model_socio.project(df_input_country)
-    df_parcial = pd.DataFrame({"Nation" : [target_country]*9, "Year" :range(2011,2020),"qty_gnrl_households" : df_project["qty_gnrl_households"].to_list()})
-    df_acumula = pd.concat([df_acumula,df_parcial])
+plt.show()

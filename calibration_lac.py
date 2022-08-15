@@ -23,7 +23,7 @@ from model_circular_economy import CircularEconomy
 from model_ippu import IPPU
 
 from optimization_algorithms import *
-
+from scipy.optimize import differential_evolution
 '''
 ------------------------------------------
 
@@ -45,12 +45,13 @@ RunModel class
 class RunModel:
     """docstring for CalibrationModel."""
 
-    def __init__(self, df_input_var, country, subsector_model, calib_targets,downstream = False):
+    def __init__(self, df_input_var, country, subsector_model, calib_targets,df_calib_bounds,downstream = False):
         self.df_input_var = df_input_var
         self.country = country
         self.calib_targets = {}
         self.calib_targets[subsector_model] = calib_targets
         self.subsector_model = subsector_model
+        self.df_calib_bounds = df_calib_bounds
         self.downstream = downstream
         self.best_vector = {'AFOLU' : None, 'CircularEconomy' : None, 'IPPU': None}
 
@@ -86,7 +87,6 @@ class RunModel:
         self.best_vector[subsector_model] = vector
 
 
-
     """
     ---------------------------------
     get_output_data method
@@ -106,6 +106,10 @@ class RunModel:
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
+        '''
+        agrupa = self.df_calib_bounds.groupby("group")
+        index_no_group = agrupa.groups[0]
+
         var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
         var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
         
@@ -116,7 +120,21 @@ class RunModel:
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
+        '''
+        agrupa = self.df_calib_bounds.groupby("group")
+        group_list = self.df_calib_bounds["group"].unique()
+        total_groups = len(group_list)
+
+        for group in group_list:
+            group = int(group)
+            if group == 0:
+                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
+            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
+
         
+
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
             model_afolu = AFOLU(sa.model_attributes)
@@ -189,8 +207,7 @@ class CalibrationModel(RunModel):
 
     def __init__(self, df_input_var, country, subsector_model, calib_targets, df_calib_bounds, t_times,
                  df_co2_emissions, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0,downstream = False,weight_co2_flag = False, weight_co2 = []):
-        super(CalibrationModel, self).__init__(df_input_var, country, subsector_model, calib_targets,downstream = False)
-        self.df_calib_bounds = df_calib_bounds
+        super(CalibrationModel, self).__init__(df_input_var, country, subsector_model, calib_targets,df_calib_bounds,downstream = False)
         self.df_co2_emissions = df_co2_emissions
         self.cv_calibration = cv_calibration
         self.cv_training = cv_training
@@ -205,6 +222,9 @@ class CalibrationModel(RunModel):
         self.weight_co2_flag = weight_co2_flag
         self.weight_co2 = np.array(weight_co2)
 
+
+    def get_calib_var_group(self,grupo): 
+        return self.df_calib_bounds.query("group =={}".format(grupo))["variable"].to_list()
 
     """
     ---------------------------------
@@ -226,6 +246,7 @@ class CalibrationModel(RunModel):
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
+        '''
         var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
         var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
         
@@ -236,7 +257,19 @@ class CalibrationModel(RunModel):
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-        
+        '''
+        agrupa = self.df_calib_bounds.groupby("group")
+        group_list = self.df_calib_bounds["group"].unique()
+        total_groups = len(group_list)
+
+        for group in group_list:
+            group = int(group)
+            if group == 0:
+                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
+            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
+
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
             model_afolu = AFOLU(sa.model_attributes)
@@ -334,6 +367,7 @@ class CalibrationModel(RunModel):
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
+        '''
         var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
         var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
         
@@ -344,7 +378,20 @@ class CalibrationModel(RunModel):
 
         if list(var_change_over_time):
             df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-        
+        '''
+
+        agrupa = self.df_calib_bounds.groupby("group")
+        group_list = self.df_calib_bounds["group"].unique()
+        total_groups = len(group_list)
+
+        for group in group_list:
+            group = int(group)
+            if group == 0:
+                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
+            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
+
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
             model_afolu = AFOLU(sa.model_attributes)
@@ -512,5 +559,39 @@ class CalibrationModel(RunModel):
             self.fitness_values[self.subsector_model], self.best_vector[self.subsector_model] ,mejor_valor = DE_par(f_cost,pop_size, max_iters,pc, lb, ub, step_size = 0.4)
             print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
             print(" Cross Validation: {} on Node {}. MSE Training : {}".format(self.cv_run ,self.id_mpi,mejor_valor[0]))
+            mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
+            print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))
+
+        if optimization_method == "differential_evolution_scipy":
+            
+            print("------------------------------------------------")
+            print("         PARALLEL DIFERENTIAL SCIPY      ")
+            print("------------------------------------------------")
+
+            start_time = time.time()
+
+            print("--------- Start Cross Validation: {} on Node {}. Model: {}".format(self.cv_run,self.id_mpi,self.subsector_model))
+
+            # 1 - Define the upper and lower bounds of the search space
+            n_dim =  len(self.calib_targets[self.subsector_model])              # Number of dimensions of the problem
+            lb = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "min_35"].item()  for i in self.calib_targets[self.subsector_model]]  # lower bound for the search space
+            ub =  [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "max_35"].item()  for i in self.calib_targets[self.subsector_model]] # upper bound for the search space
+            bounds = [(i,j) for i,j in zip(lb,ub)]
+
+            # 2 - Define the parameters for the optimization
+            max_iters = maxiter  # maximum number of iterations
+
+            # 3 - Parameters for the algorithm
+            pc = 0.7 # crossover probability
+            pop_size = population   # number of individuals in the population
+
+            # 4 - Define the cost function
+            f_cost = self.f
+
+            # 5 - Run the DE algorithm
+            # call DE
+            self.best_vector[self.subsector_model] ,mejor_valor = differential_evolution(f_cost,bounds,maxiter=10, popsize=20, tol=0.01, mutation=(0.5, 1), recombination=0.7)
+            print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
+            print(" Cross Validation: {} on Node {}. MSE Training : {}".format(self.cv_run ,self.id_mpi,mejor_valor))
             mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
             print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))

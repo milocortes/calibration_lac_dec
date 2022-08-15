@@ -164,7 +164,7 @@ class BinaryGenetic(object):
         ## Iniciamos el algoritmo genético
         feno = DECODE(self.n_variables,self.m,self.i_sup_vec,self.i_inf_vec,dimension_vec,genotipo)
         print("Evaluando poblacion inicial")
-        objv = OBJFUN(f,feno,False,1)
+        objv = OBJFUN(f,feno,True,1)
 
         resultados = []
         mejor_individuo = 0
@@ -184,7 +184,7 @@ class BinaryGenetic(object):
             genotipo = CRUZA(seleccion,"unpunto",length_total_cromosoma)
             genotipo = MUTACION(genotipo,length_total_cromosoma,self.n_variables,dimension_vec)
             feno = DECODE(self.n_variables,self.m,self.i_sup_vec,self.i_inf_vec,dimension_vec,genotipo)
-            objv = OBJFUN(f,feno,False,1)
+            objv = OBJFUN(f,feno,True,1)
             resultados.append(min(objv))
             mejor_individuo = objv.index(min(objv))
             #print("Mejor valor fun.obj ---> {}. Variables de decision ---> {}".format(objv[mejor_individuo],feno[mejor_individuo]))
