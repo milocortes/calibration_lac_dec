@@ -21,7 +21,7 @@ all_countries_list = ['argentina','bahamas','barbados','belize','bolivia','brazi
 df_input_data_countries = pd.DataFrame()
 
 for country in all_countries_list:
-    partial = df_input_data.iloc[0:9]
+    partial = df_input_data.iloc[0:6]
     partial["country"] = country
     df_input_data_countries = pd.concat([df_input_data_countries,partial])
 
@@ -91,7 +91,7 @@ for category,variables in dic_validate_category.items():
 
 print("\nAdding Variables change over time\n")
 
-year_init,year_end = 2011,2019
+year_init,year_end = 2014,2019
 
 for var in observed_data_change_over_time:
     print("Adding {}".format(var))

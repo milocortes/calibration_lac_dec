@@ -43,7 +43,7 @@ df_input_all_countries = pd.read_csv("all_countries_test_CalibrationModel_class.
 models_run = "AFOLU"
 
 # Load observed CO2 data
-df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/co2_all_models.csv")
+df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/emissions_targets.csv")
 
 # Load calib targets by model to run
 df_calib_targets =  pd.read_csv("build_bounds/output/calib_bounds_sector.csv")
@@ -64,7 +64,13 @@ year_init,year_end = 2011,2019
 
 df_input_country = df_input_all_countries.query("country =='{}'".format(target_country)).reset_index().drop(columns=["index"])
 t_times = range(year_init, year_end+1)
-df_co2_observed_data = df_co2_observed_data.query("model == '{}' and country=='{}' and (year >= {} and year <= {} )".format(models_run,target_country,year_init,year_end))
+df_co2_observed_data = df_co2_observed_data.query("model == '{}' and Nation=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init,year_end))
+df_co2_observed_data =  df_co2_observed_data
+
+# AFOLU FAO co2
+import json
+AFOLU_fao_correspondence = json.load(open("build_CO2_data_models/FAO_correspondence/AFOLU_fao_correspondence.json", "r"))
+AFOLU_fao_correspondence = {k:v for k,v in AFOLU_fao_correspondence.items() if v}
 
 # Define dataframe to save results
 pd_output_all = pd.DataFrame()
@@ -92,11 +98,11 @@ for proc_id,(iteracion,training,test) in enumerate(zip(sendbuf_cv_index,sendbuf_
 
         calibration = CalibrationModel(df_input_country, target_country, models_run,
                                     calib_targets, calib_bounds, t_times,
-                                    df_co2_observed_data,cv_training = cv , 
+                                    df_co2_observed_data,AFOLU_fao_correspondence,cv_training = cv , 
                                     cv_test = cv_test, cv_run = k, id_mpi = proc_id,
                                     cv_calibration = True)
 
-        calibration.run_calibration("differential_evolution", population = 60, maxiter = 20)
+        calibration.run_calibration("genetic_binary", population = 10, maxiter = 10)
 
         mse_test = calibration.get_mse_test(calibration.best_vector[models_run])
         print(" Cross Validation: {} on Node {}. MSE Test : {}".format(k,proc_id,mse_test))

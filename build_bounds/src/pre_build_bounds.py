@@ -179,6 +179,17 @@ calib_bounds_afolu_no_groups = pd.DataFrame({'variable' : calib_afolu_no_groups[
 
 calib_bounds_afolu = pd.concat([calib_bounds_afolu_groups,calib_bounds_afolu_no_groups])
 
+calib_afolu_pij = pd.read_excel("../data/df_af_var_calib.xlsx",header = 2)
+calib_afolu_pij = calib_afolu_pij[calib_afolu_pij["Sum Group"].isin(list(range(34,42)))]
+
+calib_afolu_pij = pd.DataFrame([(i,0.9,1.1,"AFOLU",0,0,j)for i,j in zip(calib_afolu_pij["Variable"],calib_afolu_pij["Sum Group"])], columns = list(calib_bounds_afolu.columns)+["norm_group"])
+contador_grupo = 1
+for i in range(34,42):
+    calib_afolu_pij.loc[calib_afolu_pij['norm_group'] == i, 'norm_group'] = contador_grupo
+    contador_grupo += int(1)
+
+calib_bounds_afolu["norm_group"] = 0
+calib_bounds_afolu = pd.concat([calib_bounds_afolu,calib_afolu_pij], ignore_index=True)
 calib_bounds_afolu.sort_values("group",inplace = True)
 calib_bounds_afolu.reset_index(drop=True, inplace = True)
 
@@ -188,7 +199,9 @@ Concat all sectors
 
 calib_bounds_ippu["group"] = 0
 calib_bounds_ce["group"] = 0
+calib_bounds_ippu["norm_group"] = 0
+calib_bounds_ce["norm_group"] = 0
 
-calib_bounds_sectors = pd.concat([calib_bounds_ce,calib_bounds_ippu,calib_bounds_afolu])
+calib_bounds_sectors = pd.concat([calib_bounds_ce,calib_bounds_ippu,calib_bounds_afolu],ignore_index=True)
 
 calib_bounds_sectors.to_csv("../output/calib_bounds_sector.csv",index=False)
