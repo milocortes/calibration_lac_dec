@@ -364,7 +364,6 @@ class CalibrationModel(RunModel):
         co2_df = pd.DataFrame(item_val_afolu)
         co2_df_percent_diff = pd.DataFrame(item_val_afolu_percent_diff)
         self.percent_diff = co2_df_percent_diff
-        print(self.percent_diff.columns)
         self.error_by_item = co2_df
         co2_df_total = co2_df.sum(1)
 
@@ -640,10 +639,10 @@ class CalibrationModel(RunModel):
             mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
             print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))
 
-        if optimization_method == "differential_evolution_scipy":
+        if optimization_method == "pso":
             
             print("------------------------------------------------")
-            print("         PARALLEL DIFERENTIAL SCIPY      ")
+            print("         PARTICLE SWARM OPTIMIZATION      ")
             print("------------------------------------------------")
 
             start_time = time.time()
@@ -654,22 +653,34 @@ class CalibrationModel(RunModel):
             n_dim =  len(self.calib_targets[self.subsector_model])              # Number of dimensions of the problem
             lb = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "min_35"].item()  for i in self.calib_targets[self.subsector_model]]  # lower bound for the search space
             ub =  [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "max_35"].item()  for i in self.calib_targets[self.subsector_model]] # upper bound for the search space
-            bounds = [(i,j) for i,j in zip(lb,ub)]
+            lb = np.array(lb)
+            ub = np.array(ub)
 
             # 2 - Define the parameters for the optimization
             max_iters = maxiter  # maximum number of iterations
 
             # 3 - Parameters for the algorithm
-            pc = 0.7 # crossover probability
             pop_size = population   # number of individuals in the population
+            # Cognitive scaling parameter
+            α = 0.8
+            # Social scaling parameter
+            β = 0.8
+            # velocity inertia
+            w = 0.5
+            # minimum value for the velocity inertia
+            w_min = 0.4
+            # maximum value for the velocity inertia
+            w_max = 0.9
 
             # 4 - Define the cost function
             f_cost = self.f
 
-            # 5 - Run the DE algorithm
+            # 5 - Run the PSO algorithm
             # call DE
-            self.best_vector[self.subsector_model] ,mejor_valor = differential_evolution(f_cost,bounds,maxiter=10, popsize=20, tol=0.01, mutation=(0.5, 1), recombination=0.7)
+            self.fitness_values[self.subsector_model], self.best_vector[self.subsector_model] ,mejor_valor = PSO(f_cost,pop_size, max_iters, lb, ub,α,β,w,w_max,w_min)
             print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
             print(" Cross Validation: {} on Node {}. MSE Training : {}".format(self.cv_run ,self.id_mpi,mejor_valor))
             mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
             print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))
+
+ 
