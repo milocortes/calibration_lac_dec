@@ -636,7 +636,7 @@ def PSO(f_cost,pop_size,max_iters,lb,ub,α,β,w,w_max,w_min):
     for i,v in enumerate(sample_scaled):
         pbest_pos_arg[i] = v
 
-    p = Pool(processes = int(cpu_count()/2),initializer=init_pso,
+    p = Pool(processes = int(cpu_count()),initializer=init_pso,
             initargs=(gbest_val,gbest_pos,pos_resh, vel_resh, 
                       pbest_val_arg, pbest_pos_arg, f_cost,α,β,w,
                       np_vMax,np_vMin,np_u_bounds,np_l_bounds,))
