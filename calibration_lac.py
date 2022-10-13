@@ -45,7 +45,7 @@ RunModel class
 class RunModel:
     """docstring for CalibrationModel."""
 
-    def __init__(self, df_input_var, country, subsector_model, calib_targets,df_calib_bounds,downstream = False):
+    def __init__(self, df_input_var, country, subsector_model, calib_targets,df_calib_bounds,all_time_period_input_data = None,downstream = False):
         self.df_input_var = df_input_var
         self.country = country
         self.calib_targets = {}
@@ -54,7 +54,7 @@ class RunModel:
         self.df_calib_bounds = df_calib_bounds
         self.downstream = downstream
         self.best_vector = {'AFOLU' : None, 'CircularEconomy' : None, 'IPPU': None}
-
+        self.all_time_period_input_data = all_time_period_input_data
     """
     ---------------------------------
     set_calib_targets method
@@ -103,24 +103,41 @@ class RunModel:
     """
 
     def get_output_data(self, params):
+
+        # All time periods input data
+        df_input_data = self.all_time_period_input_data.copy()
+
+        agrupa = self.df_calib_bounds.groupby("group")
+        group_list = self.df_calib_bounds["group"].unique()
+        total_groups = len(group_list)
+
+        for group in group_list:
+            group = int(group)
+            if group == 0:
+                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
+            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
+        
+        agrupa = self.df_calib_bounds.groupby("norm_group")
+        group_list = self.df_calib_bounds["norm_group"].unique()
+        total_groups = len(group_list)
+        
+        for group in group_list:
+            group = int(group)
+            if group != 0:
+                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
+                total_grupo = df_input_data[pij_vars].sum(1)
+                for pij_var_ind in pij_vars:
+                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
+
+        self.all_time_period_input_data = df_input_data.copy()
+
+
+        # CV training input data
         df_input_data = self.df_input_var.copy()
         df_input_data = df_input_data.iloc[self.cv_training]
 
-        '''
-        agrupa = self.df_calib_bounds.groupby("group")
-        index_no_group = agrupa.groups[0]
-
-        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
-        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
-        
-        index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
-        index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
-
-        df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
-
-        if list(var_change_over_time):
-            df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-        '''
         agrupa = self.df_calib_bounds.groupby("group")
         group_list = self.df_calib_bounds["group"].unique()
         total_groups = len(group_list)
@@ -133,6 +150,19 @@ class RunModel:
             index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
             df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
 
+        agrupa = self.df_calib_bounds.groupby("norm_group")
+        group_list = self.df_calib_bounds["norm_group"].unique()
+        total_groups = len(group_list)
+        
+        for group in group_list:
+            group = int(group)
+            if group != 0:
+                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
+                total_grupo = df_input_data[pij_vars].sum(1)
+                for pij_var_ind in pij_vars:
+                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
+                     
+        self.imputed_input_data = df_input_data.copy()
         '''
         agrupa = self.df_calib_bounds.groupby("norm_group")
         group_list = self.df_calib_bounds["norm_group"].unique()
@@ -185,6 +215,37 @@ class RunModel:
 
         return df_model_data_project
 
+    """
+    ---------------------------------
+    build_calibrated_data method
+    ---------------------------------
+
+    Description: The method recive params and build the calibrated
+                 data of specific subsector model.
+
+    # Inputs:
+             * params                   - calibration vector
+             * df_input_data            - fake data complete
+
+    # Output:
+             * df_calibrated_data       - calibrated data
+    """
+
+    def build_calibrated_data(self, params,df_input_data):
+
+        agrupa = self.df_calib_bounds.groupby("group")
+        group_list = self.df_calib_bounds["group"].unique()
+        total_groups = len(group_list)
+
+        for group in group_list:
+            group = int(group)
+            if group == 0:
+                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
+            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
+
+        return df_input_data
 '''
 ------------------------------------------
 
@@ -216,9 +277,9 @@ class CalibrationModel(RunModel):
     """docstring for CalibrationModel."""
 
 
-    def __init__(self, df_input_var, country, subsector_model, calib_targets, df_calib_bounds, t_times,
+    def __init__(self, df_input_var, country, subsector_model, calib_targets, df_calib_bounds, all_time_period_input_data,
                  df_co2_emissions, co2_emissions_by_sector = {}, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0,downstream = False,weight_co2_flag = False, weight_co2 = []):
-        super(CalibrationModel, self).__init__(df_input_var, country, subsector_model, calib_targets,df_calib_bounds,downstream = False)
+        super(CalibrationModel, self).__init__(df_input_var, country, subsector_model, calib_targets,df_calib_bounds,all_time_period_input_data,downstream = False)
         self.df_co2_emissions = df_co2_emissions
         self.cv_calibration = cv_calibration
         self.cv_training = cv_training
@@ -231,7 +292,7 @@ class CalibrationModel(RunModel):
         self.fitness_values = {'AFOLU' : [], 'CircularEconomy' : [], 'IPPU' : []}
         self.weight_co2_flag = weight_co2_flag
         self.weight_co2 = np.array(weight_co2)
-
+        self.item_val_afolu_total_item_fao = None
 
     def get_calib_var_group(self,grupo): 
         return self.df_calib_bounds.query("group =={}".format(grupo))["variable"].to_list()
@@ -280,6 +341,18 @@ class CalibrationModel(RunModel):
             index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
             df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
 
+        agrupa = self.df_calib_bounds.groupby("norm_group")
+        group_list = self.df_calib_bounds["norm_group"].unique()
+        total_groups = len(group_list)
+        
+        for group in group_list:
+            group = int(group)
+            if group != 0:
+                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
+                total_grupo = df_input_data[pij_vars].sum(1)
+                for pij_var_ind in pij_vars:
+                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
+                     
         '''
         agrupa = self.df_calib_bounds.groupby("norm_group")
         group_list = self.df_calib_bounds["norm_group"].unique()
@@ -347,17 +420,19 @@ class CalibrationModel(RunModel):
         #trend = [i/1000 for i in trend]
 
         item_val_afolu = {}
+        item_val_afolu_total_item_fao = {}
         item_val_afolu_percent_diff = {}
         acumula_total = np.array([0.0]*6)
 
         for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
             if vars:
-                acumula_total += (self.df_co2_emissions.drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
+                acumula_total += (self.df_co2_emissions.query(f"Item_Code=={item}").drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
 
 
         for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
             if vars:
                 item_val_afolu[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000)**2
+                item_val_afolu_total_item_fao[item] = df_model_data_project[vars].sum(1)  
                 #item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) / ((self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000))*100
                 item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000)**2 / acumula_total
 
@@ -365,6 +440,7 @@ class CalibrationModel(RunModel):
         co2_df_percent_diff = pd.DataFrame(item_val_afolu_percent_diff)
         self.percent_diff = co2_df_percent_diff
         self.error_by_item = co2_df
+        self.item_val_afolu_total_item_fao = item_val_afolu_total_item_fao
         co2_df_total = co2_df.sum(1)
 
         if self.cv_calibration:
@@ -441,6 +517,18 @@ class CalibrationModel(RunModel):
             index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
             df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
 
+        agrupa = self.df_calib_bounds.groupby("norm_group")
+        group_list = self.df_calib_bounds["norm_group"].unique()
+        total_groups = len(group_list)
+        
+        for group in group_list:
+            group = int(group)
+            if group != 0:
+                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
+                total_grupo = df_input_data[pij_vars].sum(1)
+                for pij_var_ind in pij_vars:
+                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
+                     
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
             model_afolu = AFOLU(sa.model_attributes)

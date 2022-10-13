@@ -7,11 +7,11 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-df_input_all_countries = pd.read_csv("all_countries_test_CalibrationModel_class.csv")
+df_input_all_countries = pd.read_csv("real_data_2022_10_04.csv")
 
 # Define target country
-import sys
-target_country = str(sys.argv[1])
+import sys 
+target_country = "brazil"
 
 # Set model to run
 models_run = "AFOLU"
@@ -22,6 +22,16 @@ df_co2_observed_data = pd.read_csv("build_CO2_data_models/output/emissions_targe
 # Load calib targets by model to run
 df_calib_targets =  pd.read_csv("build_bounds/output/calib_bounds_sector.csv")
 
+remueve_calib = ['qty_soil_organic_c_stock_dry_climate_tonne_per_ha',
+ 'qty_soil_organic_c_stock_temperate_crop_grass_tonne_per_ha',
+ 'qty_soil_organic_c_stock_temperate_forest_nutrient_poor_tonne_per_ha',
+ 'qty_soil_organic_c_stock_temperate_forest_nutrient_rich_tonne_per_ha',
+ 'qty_soil_organic_c_stock_tropical_crop_grass_tonne_per_ha',
+ 'qty_soil_organic_c_stock_tropical_forest_tonne_per_ha',
+ 'qty_soil_organic_c_stock_wet_climate_tonne_per_ha',
+ 'scalar_lvst_carrying_capacity','frac_soil_soc_loss_in_cropland']
+
+df_calib_targets = df_calib_targets[~df_calib_targets.variable.isin(remueve_calib)]
 calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run)).reset_index(drop = True)
 
 calib_bounds_groups = calib_bounds.groupby("group")
@@ -36,7 +46,11 @@ calib_targets = calib_bounds['variable'].iloc[indices_params].reset_index(drop=T
 # Define lower and upper time bounds
 year_init,year_end = 2014,2019
 
-df_input_country = df_input_all_countries.query("country =='{}'".format(target_country)).reset_index().drop(columns=["index"])
+df_input_country = df_input_all_countries.query("Nation =='{}' and (Year>={} and Year<={})".format(target_country,year_init,year_end)).reset_index().drop(columns=["index"])
+df_input_country["time_period"] = list(range(1+(year_end-year_init)))
+
+df_input_country_all_time_period = df_input_all_countries.query("Nation =='{}'".format(target_country)).reset_index().drop(columns=["index"])
+
 t_times = range(year_init, year_end+1)
 df_co2_observed_data = df_co2_observed_data.query("model == '{}' and Nation=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init,year_end))
 df_co2_observed_data =  df_co2_observed_data
@@ -57,10 +71,10 @@ acumula_percent_diff = []
 for i in range(5):
     print(i)
     calibration = CalibrationModel(df_input_country, target_country, models_run,
-                                    calib_targets, calib_bounds, t_times,
+                                    calib_targets, calib_bounds,df_input_country_all_time_period,
                                     df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False)
 
-    calibration.run_calibration("genetic_binary", population = 200, maxiter = 100)
+    calibration.run_calibration("pso", population = 100, maxiter = 40)
 
     calib_vec_to_df = pd.DataFrame(np.array(calibration.best_vector["AFOLU"])[np.newaxis,:],columns=list(calib_targets))
 
