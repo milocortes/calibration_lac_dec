@@ -213,6 +213,29 @@ class RunModel:
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
+        item_val_afolu = {}
+        item_val_afolu_total_item_fao = {}
+        item_val_afolu_total_item_fao_observado = {}
+
+        item_val_afolu_percent_diff = {}
+
+        acumula_total = (self.df_co2_emissions.groupby(["Area_Code","Year"]).sum().reset_index(drop=True).Value/1000).to_numpy()
+
+        for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
+            if vars:
+                item_val_afolu_total_item_fao[item] = df_model_data_project[vars].sum(1)  
+                item_val_afolu_total_item_fao_observado[item] = (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
+                item_val_afolu[item] = (item_val_afolu_total_item_fao[item] - item_val_afolu_total_item_fao_observado[item])**2
+                #item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) / ((self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000))*100
+                item_val_afolu_percent_diff[item] = ((item_val_afolu_total_item_fao[item] - item_val_afolu_total_item_fao_observado[item])/item_val_afolu_total_item_fao_observado[item])*100
+
+        co2_df = pd.DataFrame(item_val_afolu)
+        co2_df_percent_diff = pd.DataFrame(item_val_afolu_percent_diff)
+        self.percent_diff = co2_df_percent_diff
+        self.error_by_item = co2_df
+        self.item_val_afolu_total_item_fao = item_val_afolu_total_item_fao
+        co2_df_total = co2_df.sum(1)
+
         return df_model_data_project
 
     """
@@ -421,20 +444,17 @@ class CalibrationModel(RunModel):
 
         item_val_afolu = {}
         item_val_afolu_total_item_fao = {}
+        item_val_afolu_total_item_fao_observado = {}
         item_val_afolu_percent_diff = {}
-        acumula_total = np.array([0.0]*6)
+        acumula_total = (self.df_co2_emissions.groupby(["Area_Code","Year"]).sum().reset_index(drop=True).Value/1000).to_numpy()
 
         for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
             if vars:
-                acumula_total += (self.df_co2_emissions.query(f"Item_Code=={item}").drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
-
-
-        for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
-            if vars:
-                item_val_afolu[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000)**2
                 item_val_afolu_total_item_fao[item] = df_model_data_project[vars].sum(1)  
+                item_val_afolu_total_item_fao_observado[item] = (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
+                item_val_afolu[item] = (item_val_afolu_total_item_fao[item] - item_val_afolu_total_item_fao_observado[item])**2
                 #item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) / ((self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000))*100
-                item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000)**2 / acumula_total
+                item_val_afolu_percent_diff[item] = ((item_val_afolu_total_item_fao[item] - item_val_afolu_total_item_fao_observado[item])/item_val_afolu_total_item_fao_observado[item])*100
 
         co2_df = pd.DataFrame(item_val_afolu)
         co2_df_percent_diff = pd.DataFrame(item_val_afolu_percent_diff)
@@ -585,18 +605,13 @@ class CalibrationModel(RunModel):
 
         item_val_afolu = {}
         item_val_afolu_percent_diff = {}
-        acumula_total = np.array([0.0]*6)
-
-        for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
-            if vars:
-                acumula_total += (self.df_co2_emissions.drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
-
+        acumula_total = (self.df_co2_emissions.groupby(["Area_Code","Year"]).sum().reset_index(drop=True).Value/1000).to_numpy()
 
         for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
             if vars:
                 item_val_afolu[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000)**2
                 #item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) / ((self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000))*100
-                item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000)**2 / acumula_total
+                item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000) / (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value/1000)
 
         co2_df = pd.DataFrame(item_val_afolu)
         co2_df_percent_diff = pd.DataFrame(item_val_afolu_percent_diff)
