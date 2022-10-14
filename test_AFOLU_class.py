@@ -110,3 +110,41 @@ for item,values in item_val_afolu.items():
 plt.show()
 
 
+
+calib_bounds.loc[calib_bounds["variable"].isin([i for i in calib_bounds["variable"] if "pij" in i]),"max_35"] = 1.5
+calib_bounds.loc[calib_bounds["variable"].isin([i for i in calib_bounds["variable"] if "pij" in i]),"min_35"] = 0.5
+
+acumula_co2_it = {}
+
+for i in range(2,7):
+    print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+    print(f"             {i}              ")
+    print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+
+    calibration = CalibrationModel(df_input_country, target_country, models_run,
+                                    calib_targets, calib_bounds,df_input_country_all_time_period,
+                                    df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=i)
+
+    calibration.run_calibration("pso", population = 10, maxiter = 10)
+
+
+    output_data = calibration.get_output_data(calibration.best_vector["AFOLU"])
+
+    item_val_afolu = {}
+    observed_val_afolu = {}
+    for item, vars in AFOLU_fao_correspondence.items():
+        if vars:
+            item_val_afolu[item] = output_data[vars].sum(1).to_list()
+            observed_val_afolu[item] = (df_co2_observed_data.query("Item_Code=={}".format(item)).Value/1000).to_list()
+
+    observed_val_afolu = {k:v for k,v in observed_val_afolu.items() if len(v) > 0}
+
+    acumula_co2_it[i] = pd.DataFrame(item_val_afolu).sum(axis=1)
+    co2_historical = pd.DataFrame(observed_val_afolu).sum(axis=1)
+
+for k,v in acumula_co2_it.items():
+    plt.plot(v, label = f"Estimado . Prec {k}")
+plt.plot(co2_historical,label="estimado")
+plt.title(target_country)
+plt.legend()
+plt.show()

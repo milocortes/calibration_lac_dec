@@ -72,7 +72,7 @@ for i in range(5):
     print(i)
     calibration = CalibrationModel(df_input_country, target_country, models_run,
                                     calib_targets, calib_bounds,df_input_country_all_time_period,
-                                    df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False)
+                                    df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4)
 
     calibration.run_calibration("pso", population = 100, maxiter = 40)
 
