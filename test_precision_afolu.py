@@ -62,7 +62,7 @@ AFOLU_fao_correspondence = {k:v for k,v in AFOLU_fao_correspondence.items() if v
 
 
 acumula_co2_it = {i:{} for i in range(2,4)}
-N = 5
+N = 20
 
 for prec in range(2,4):
     print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
@@ -78,7 +78,7 @@ for prec in range(2,4):
                                         calib_targets, calib_bounds,df_input_country_all_time_period,
                                         df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=prec)
 
-        calibration.run_calibration("pso", population = 100, maxiter = 10)
+        calibration.run_calibration("pso", population = 100, maxiter = 40)
 
 
         output_data = calibration.get_output_data(calibration.best_vector["AFOLU"])
