@@ -12,7 +12,7 @@ df_input_all_countries = pd.read_csv("real_data_2022_10_04.csv")
 # Define target country
 import sys 
 #target_country = "brazil"
-target_country = sys.argv[0]
+target_country = sys.argv[1]
 # Set model to run
 models_run = "AFOLU"
 
