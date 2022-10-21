@@ -24,6 +24,8 @@ from model_ippu import IPPU
 
 from optimization_algorithms import *
 from scipy.optimize import differential_evolution
+
+import plotly.express as px
 '''
 ------------------------------------------
 
@@ -471,17 +473,27 @@ class CalibrationModel(RunModel):
         self.item_val_afolu_total_item_fao = item_val_afolu_total_item_fao
         co2_df_total = co2_df.sum(1)
 
+        co2_df_observado = pd.DataFrame(item_val_afolu_total_item_fao_observado)
+
+        ponderadores = (co2_df_observado.mean().abs()/co2_df_observado.mean().abs().sum()).apply(math.exp)   
+        co2_df_total = (ponderadores*co2_df).sum(1)
+
         if self.cv_calibration:
+            """
             co2_df_total = np.array([co2_df_total[i] for i in self.cv_training])
             output = np.mean(co2_df_total)
-        else:
-            output = np.mean(co2_df_total)
+            """
+            co2_df_total = [co2_df_total[i] for i in self.cv_training]
+            output = np.sum(co2_df_total)
 
+        else:
+            output = np.sum(co2_df_total)
+            """
             if any((np.mean(self.percent_diff[["5058","6750"]]).to_numpy()>30).flatten()):
                 return output + 10000000
             else:
-
-                return output
+            """
+        return output
 
     """
     --------------------------------------------
@@ -616,11 +628,14 @@ class CalibrationModel(RunModel):
 
         item_val_afolu = {}
         item_val_afolu_percent_diff = {}
+        item_val_afolu_total_item_fao_observado = {}
+
         acumula_total = (self.df_co2_emissions.groupby(["Area_Code","Year"]).sum().reset_index(drop=True).Value/1000).to_numpy()
 
         for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
             if vars:
                 item_val_afolu[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000)**2
+                item_val_afolu_total_item_fao_observado[item] = (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
                 #item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) / ((self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000))*100
                 item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000) / (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value/1000)
 
@@ -630,17 +645,28 @@ class CalibrationModel(RunModel):
         self.error_by_item = co2_df
         co2_df_total = co2_df.sum(1)
 
+        co2_df_observado = pd.DataFrame(item_val_afolu_total_item_fao_observado)
+
+        ponderadores = (co2_df_observado.mean().abs()/co2_df_observado.mean().abs().sum()).apply(math.exp)
+
+        co2_df_total = (ponderadores*co2_df).sum(1)
+
         if self.cv_calibration:
+            """
             co2_df_total = np.array([co2_df_total[i] for i in self.cv_training])
             output = np.mean(co2_df_total)
-        else:
-            output = np.mean(co2_df_total)
+            """
+            co2_df_total = [co2_df_total[i] for i in self.cv_training]
+            output = np.sum(co2_df_total)
 
+        else:
+            output = np.sum(co2_df_total)
+            """
             if any((np.mean(self.percent_diff[["5058","6750"]]).to_numpy()>30).flatten()):
                 return output + 10000000
             else:
-
-                return output
+            """
+        return output
 
 
     def run_calibration(self,optimization_method,population, maxiter):
@@ -797,4 +823,100 @@ class CalibrationModel(RunModel):
             mse_test = self.get_mse_test(self.best_vector[self.subsector_model])
             print(" Cross Validation: {} on Node {}. MSE Test : {}".format(self.cv_run ,self.id_mpi,mse_test))
 
+    def build_bar_plot_afolu(self, params, show = False):
+        # All time periods input data
+        df_input_data = self.all_time_period_input_data.copy()
+
+        agrupa = self.df_calib_bounds.groupby("group")
+        group_list = self.df_calib_bounds["group"].unique()
+        total_groups = len(group_list)
+
+        for group in group_list:
+            group = int(group)
+            if group == 0:
+                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
+                #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))  
+            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
+            #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
+        
+        agrupa = self.df_calib_bounds.groupby("norm_group")
+        group_list = self.df_calib_bounds["norm_group"].unique()
+        total_groups = len(group_list)
+        
+        for group in group_list:
+            group = int(group)
+            if group != 0:
+                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
+                total_grupo = df_input_data[pij_vars].sum(1)
+                for pij_var_ind in pij_vars:
+                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
+                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind].apply(lambda x: round(x, self.precition))
+
+        # CV training input data
+        df_input_data = self.df_input_var.copy()
+        df_input_data = df_input_data.iloc[self.cv_training]
+
+        agrupa = self.df_calib_bounds.groupby("group")
+        group_list = self.df_calib_bounds["group"].unique()
+        total_groups = len(group_list)
+
+        for group in group_list:
+            group = int(group)
+            if group == 0:
+                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
+                #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
+
+            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
+            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
+            #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
+        
+        agrupa = self.df_calib_bounds.groupby("norm_group")
+        group_list = self.df_calib_bounds["norm_group"].unique()
+        total_groups = len(group_list)
+        
+        for group in group_list:
+            group = int(group)
+            if group != 0:
+                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
+                total_grupo = df_input_data[pij_vars].sum(1)
+                for pij_var_ind in pij_vars:
+                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
+                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind].apply(lambda x: round(x, self.precition))
+
+        model_afolu = AFOLU(sa.model_attributes)
+        output_data = model_afolu.project(df_input_data)
+
+        item_val_afolu = {}
+        observed_val_afolu = {}
+
+        for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
+            if vars:
+                item_val_afolu[item] = output_data[vars].sum(1).to_list()
+                observed_val_afolu[item] = (self.df_co2_emissions.query("Item_Code=={}".format(item)).Value/1000).to_list()
+
+
+        df_item_val_afolu = pd.DataFrame(item_val_afolu)
+        df_item_val_afolu["time"] = [i for i in range(2014,2020)]
+
+        df_item_val_afolu = df_item_val_afolu.melt(id_vars = "time", value_vars = df_item_val_afolu.columns[:-1])
+
+        df_observed_val_afolu = pd.DataFrame(observed_val_afolu)
+        df_observed_val_afolu["time"] = [i for i in range(2014,2020)]
+
+        df_observed_val_afolu = df_observed_val_afolu.melt(id_vars = "time", value_vars = df_observed_val_afolu.columns[:-1])
+
+        df_observed_val_afolu["group"] = "observado"
+        df_item_val_afolu["group"] = "calibrado"
+
+        df_plot_chart = pd.concat([df_item_val_afolu,df_observed_val_afolu])
+
+        fig = px.bar(df_plot_chart, x="group", y="value", title = self.country.capitalize(), facet_col="time", color="variable")
+
+        if show:
+            fig.show()
+
+        fig.write_html(f"output_calib/afolu_items_historicos_calibrados_{self.country}.html")
  
