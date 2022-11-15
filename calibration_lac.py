@@ -11,7 +11,6 @@ cwd = os.getcwd()
 
 sys.path.append(cwd + '/lac_decarbonization/python')
 
-import data_structures as ds
 import setup_analysis as sa
 import support_functions as sf
 import sector_models as sm
@@ -26,6 +25,9 @@ from optimization_algorithms import *
 from scipy.optimize import differential_evolution
 
 import plotly.express as px
+
+from decorators import data_AFOLU
+
 '''
 ------------------------------------------
 
@@ -89,6 +91,9 @@ class RunModel:
         self.best_vector[subsector_model] = vector
 
 
+    @data_AFOLU
+    def build_data_AFOLU(self, params):
+        pass
     """
     ---------------------------------
     get_output_data method
@@ -106,85 +111,10 @@ class RunModel:
 
     def get_output_data(self, params):
 
-        # All time periods input data
-        df_input_data = self.all_time_period_input_data.copy()
 
-        agrupa = self.df_calib_bounds.groupby("group")
-        group_list = self.df_calib_bounds["group"].unique()
-        total_groups = len(group_list)
-
-        for group in group_list:
-            group = int(group)
-            if group == 0:
-                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
-                #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))  
-            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
-            #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
-        
-        agrupa = self.df_calib_bounds.groupby("norm_group")
-        group_list = self.df_calib_bounds["norm_group"].unique()
-        total_groups = len(group_list)
-        
-        for group in group_list:
-            group = int(group)
-            if group != 0:
-                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
-                total_grupo = df_input_data[pij_vars].sum(1)
-                for pij_var_ind in pij_vars:
-                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
-                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind].apply(lambda x: round(x, self.precition))
-        self.all_time_period_input_data = df_input_data.copy()
-
-
-        # CV training input data
-        df_input_data = self.df_input_var.copy()
-        df_input_data = df_input_data.iloc[self.cv_training]
-
-        agrupa = self.df_calib_bounds.groupby("group")
-        group_list = self.df_calib_bounds["group"].unique()
-        total_groups = len(group_list)
-
-        for group in group_list:
-            group = int(group)
-            if group == 0:
-                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
-                #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
-
-            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
-            #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
-        
-        agrupa = self.df_calib_bounds.groupby("norm_group")
-        group_list = self.df_calib_bounds["norm_group"].unique()
-        total_groups = len(group_list)
-        
-        for group in group_list:
-            group = int(group)
-            if group != 0:
-                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
-                total_grupo = df_input_data[pij_vars].sum(1)
-                for pij_var_ind in pij_vars:
-                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
-                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind].apply(lambda x: round(x, self.precition))
-        self.imputed_input_data = df_input_data.copy()
-        '''
-        agrupa = self.df_calib_bounds.groupby("norm_group")
-        group_list = self.df_calib_bounds["norm_group"].unique()
-        total_groups = len(group_list)
-
-        for group in group_list:
-            group = int(group)
-            if group != 0:
-                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-                total_pij = df_input_data[index_var_group].sum(1)
-                for pij_var in index_var_group:
-                    df_input_data[pij_var] =  df_input_data[pij_var]/total_pij        
-        '''
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
+            df_input_data = self.build_data_AFOLU(params)
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
         if self.subsector_model == "CircularEconomy":
@@ -344,63 +274,10 @@ class CalibrationModel(RunModel):
 
     """
     def objective_a(self, params):
-        df_input_data = self.df_input_var.copy()
-        df_input_data = df_input_data.iloc[self.cv_training]
 
-        '''
-        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
-        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
-        
-        index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
-        index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
-
-        df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
-
-        if list(var_change_over_time):
-            df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-        '''
-        agrupa = self.df_calib_bounds.groupby("group")
-        group_list = self.df_calib_bounds["group"].unique()
-        total_groups = len(group_list)
-
-        for group in group_list:
-            group = int(group)
-            if group == 0:
-                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
-                #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
-            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
-            #df_input_data[index_var_group] = df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
-
-        agrupa = self.df_calib_bounds.groupby("norm_group")
-        group_list = self.df_calib_bounds["norm_group"].unique()
-        total_groups = len(group_list)
-        
-        for group in group_list:
-            group = int(group)
-            if group != 0:
-                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
-                total_grupo = df_input_data[pij_vars].sum(1)
-                for pij_var_ind in pij_vars:
-                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
-                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind].apply(lambda x : round(x, self.precition)) 
-                     
-        '''
-        agrupa = self.df_calib_bounds.groupby("norm_group")
-        group_list = self.df_calib_bounds["norm_group"].unique()
-        total_groups = len(group_list)
-
-        for group in group_list:
-            group = int(group)
-            if group != 0:
-                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-                total_pij = df_input_data[index_var_group].sum(1)
-                for pij_var in index_var_group:
-                    df_input_data[pij_var] =  df_input_data[pij_var]/total_pij        
-        '''
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
+            df_input_data = self.build_data_AFOLU(params)
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
 
@@ -529,51 +406,9 @@ class CalibrationModel(RunModel):
 
     def get_mse_test(self, params):
 
-        df_input_data = self.df_input_var.copy()
-        df_input_data = df_input_data.iloc[self.cv_training]
-
-        '''
-        var_change_over_time = self.df_calib_bounds.query("var_change_over_time==1")["variable"].to_list()
-        var_no_change_over_time = self.df_calib_bounds.query("var_change_over_time==0")["variable"].to_list()
-        
-        index_var_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_change_over_time]
-        index_var_no_change_over_time = [list(self.calib_targets[self.subsector_model]).index(i) for i in var_no_change_over_time]
-
-        df_input_data[var_no_change_over_time] = df_input_data[var_no_change_over_time].mean()*np.array(params)[index_var_no_change_over_time]
-
-        if list(var_change_over_time):
-            df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
-        '''
-
-        agrupa = self.df_calib_bounds.groupby("group")
-        group_list = self.df_calib_bounds["group"].unique()
-        total_groups = len(group_list)
-
-        for group in group_list:
-            group = int(group)
-            if group == 0:
-                index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-                df_input_data[index_var_group] =  df_input_data[index_var_group]*params[:-(total_groups-1)]
-                #df_input_data[index_var_group] =  df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
-            index_var_group = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]]
-            df_input_data[index_var_group] =  df_input_data[index_var_group]*params[group-total_groups]
-            #df_input_data[index_var_group] =  df_input_data[index_var_group].apply(lambda x: round(x, self.precition))
-
-        agrupa = self.df_calib_bounds.groupby("norm_group")
-        group_list = self.df_calib_bounds["norm_group"].unique()
-        total_groups = len(group_list)
-        
-        for group in group_list:
-            group = int(group)
-            if group != 0:
-                pij_vars = self.df_calib_bounds["variable"].iloc[agrupa.groups[group]].to_list()
-                total_grupo = df_input_data[pij_vars].sum(1)
-                for pij_var_ind in pij_vars:
-                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind]/total_grupo
-                    df_input_data[pij_var_ind] = df_input_data[pij_var_ind].apply(lambda x: round(x, self.precition))
-                    
         if self.subsector_model == "AFOLU":
             #print("\n\tAFOLU")
+            df_input_data = self.build_data_AFOLU(params)
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
 

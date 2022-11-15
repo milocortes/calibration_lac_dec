@@ -52,14 +52,16 @@ t_times = range(year_init, year_end+1)
 df_co2_observed_data = df_co2_observed_data.query("model == '{}' and Nation=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init,year_end))
 df_co2_observed_data =  df_co2_observed_data
 
+df_input_country_all_time_period = df_input_all_countries.query("Nation =='{}'".format(target_country)).reset_index().drop(columns=["index"])
+
 # AFOLU FAO co2
 import json
 AFOLU_fao_correspondence = json.load(open("build_CO2_data_models/FAO_correspondence/AFOLU_fao_correspondence.json", "r"))
 AFOLU_fao_correspondence = {k:v for k,v in AFOLU_fao_correspondence.items() if v}
 
 calibration = CalibrationModel(df_input_country, target_country, models_run,
-                                calib_targets, calib_bounds, t_times,
-                                df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False)
+                                calib_targets, calib_bounds,df_input_country_all_time_period,
+                                df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4)
 
 X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item()))  for i in calibration.calib_targets["AFOLU"]]
 
@@ -70,6 +72,7 @@ plt.show()
 
 
 output_data = calibration.get_output_data(calibration.best_vector["AFOLU"])
+calibration.build_bar_plot_afolu(calibration.best_vector["AFOLU"], show = True)
 
 AFOLU_fao_correspondence = json.load(open("build_CO2_data_models/FAO_correspondence/AFOLU_fao_correspondence.json", "r"))
 item_val_afolu = {}
@@ -143,7 +146,7 @@ for i in range(2,7):
     co2_historical = pd.DataFrame(observed_val_afolu).sum(axis=1)
 
 for k,v in acumula_co2_it.items():
-    plt.plot(v, label = f"Estimado . Prec {k}")
+    plt.plot(v, label = f"Estimado . Prec {k}")   
 plt.plot(co2_historical,label="estimado")
 plt.title(target_country)
 plt.legend()
