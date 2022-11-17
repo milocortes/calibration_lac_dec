@@ -32,6 +32,7 @@ remueve_calib = ['qty_soil_organic_c_stock_dry_climate_tonne_per_ha',
 
 df_calib_targets = df_calib_targets[~df_calib_targets.variable.isin(remueve_calib)]
 calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run)).reset_index(drop = True)
+#calib_bounds = calib_bounds.query("variable !='pij_calib'")
 
 calib_bounds_groups = calib_bounds.groupby("group")
 indices_params = list(calib_bounds_groups.groups[0])
@@ -41,6 +42,8 @@ for i,j in calib_bounds_groups.groups.items():
         indices_params.append(j[0])
 
 calib_targets = calib_bounds['variable'].iloc[indices_params].reset_index(drop=True)
+calib_targets = calib_targets.append(pd.Series("pij_calib"),ignore_index=True)
+
 
 # Define lower and upper time bounds
 year_init,year_end = 2014,2019
@@ -59,8 +62,8 @@ import json
 AFOLU_fao_correspondence = json.load(open("build_CO2_data_models/FAO_correspondence/AFOLU_fao_correspondence.json", "r"))
 AFOLU_fao_correspondence = {k:v for k,v in AFOLU_fao_correspondence.items() if v}
 
-calibration = CalibrationModel(df_input_country, target_country, models_run,
-                                calib_targets, calib_bounds,df_input_country_all_time_period,
+calibration = CalibrationModel(year_init, year_end, df_input_country, target_country, models_run,
+                                calib_targets, calib_bounds,df_input_country_all_time_period, 
                                 df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4)
 
 X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item()))  for i in calibration.calib_targets["AFOLU"]]

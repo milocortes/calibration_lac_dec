@@ -26,7 +26,7 @@ from scipy.optimize import differential_evolution
 
 import plotly.express as px
 
-from decorators import data_AFOLU
+from decorators import *
 
 '''
 ------------------------------------------
@@ -49,7 +49,9 @@ RunModel class
 class RunModel:
     """docstring for CalibrationModel."""
 
-    def __init__(self, df_input_var, country, subsector_model, calib_targets,df_calib_bounds,all_time_period_input_data = None,downstream = False):
+    def __init__(self, year_init, year_end, df_input_var, country, subsector_model, calib_targets,df_calib_bounds,all_time_period_input_data = None,downstream = False):
+        self.year_init = year_init 
+        self.year_end = year_end
         self.df_input_var = df_input_var
         self.country = country
         self.calib_targets = {}
@@ -59,6 +61,8 @@ class RunModel:
         self.downstream = downstream
         self.best_vector = {'AFOLU' : None, 'CircularEconomy' : None, 'IPPU': None}
         self.all_time_period_input_data = all_time_period_input_data
+
+
     """
     ---------------------------------
     set_calib_targets method
@@ -91,9 +95,16 @@ class RunModel:
         self.best_vector[subsector_model] = vector
 
 
-    @data_AFOLU
+    #@data_AFOLU
+    @data_matrix_pij_AFOLU
     def build_data_AFOLU(self, params):
         pass
+
+    @get_output_data_AFOLU
+    def cls_get_output_data_AFOLU(self, df_model_data_project):
+        pass
+
+
     """
     ---------------------------------
     get_output_data method
@@ -117,6 +128,8 @@ class RunModel:
             df_input_data = self.build_data_AFOLU(params)
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
+            self.cls_get_output_data_AFOLU(df_model_data_project)
+            
         if self.subsector_model == "CircularEconomy":
             #print("\n\tRunning CircularEconomy")
             model_circular_economy = CircularEconomy(sa.model_attributes)
@@ -149,29 +162,6 @@ class RunModel:
                     df_input_data[var_change_over_time] = df_input_data[var_change_over_time]*np.array(params)[index_var_change_over_time]
 
                 df_model_data_project = model_ippu.project(df_input_data)
-
-        item_val_afolu = {}
-        item_val_afolu_total_item_fao = {}
-        item_val_afolu_total_item_fao_observado = {}
-
-        item_val_afolu_percent_diff = {}
-
-        acumula_total = (self.df_co2_emissions.groupby(["Area_Code","Year"]).sum().reset_index(drop=True).Value/1000).to_numpy()
-
-        for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
-            if vars:
-                item_val_afolu_total_item_fao[item] = df_model_data_project[vars].sum(1)  
-                item_val_afolu_total_item_fao_observado[item] = (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
-                item_val_afolu[item] = (item_val_afolu_total_item_fao[item] - item_val_afolu_total_item_fao_observado[item])**2
-                #item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) / ((self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000))*100
-                item_val_afolu_percent_diff[item] = ((item_val_afolu_total_item_fao[item] - item_val_afolu_total_item_fao_observado[item])/item_val_afolu_total_item_fao_observado[item])*100
-
-        co2_df = pd.DataFrame(item_val_afolu)
-        co2_df_percent_diff = pd.DataFrame(item_val_afolu_percent_diff)
-        self.percent_diff = co2_df_percent_diff
-        self.error_by_item = co2_df
-        self.item_val_afolu_total_item_fao = item_val_afolu_total_item_fao
-        co2_df_total = co2_df.sum(1)
 
         return df_model_data_project
 
@@ -237,9 +227,9 @@ class CalibrationModel(RunModel):
     """docstring for CalibrationModel."""
 
 
-    def __init__(self, df_input_var, country, subsector_model, calib_targets, df_calib_bounds, all_time_period_input_data,
+    def __init__(self,  year_init, year_end, df_input_var, country, subsector_model, calib_targets, df_calib_bounds, all_time_period_input_data,
                  df_co2_emissions, co2_emissions_by_sector = {}, cv_calibration = False, cv_training = [], cv_test = [], cv_run = 0, id_mpi = 0,downstream = False,weight_co2_flag = False, weight_co2 = [],precition = 6):
-        super(CalibrationModel, self).__init__(df_input_var, country, subsector_model, calib_targets,df_calib_bounds,all_time_period_input_data,downstream = False)
+        super(CalibrationModel, self).__init__(year_init, year_end, df_input_var, country, subsector_model, calib_targets,df_calib_bounds,all_time_period_input_data,downstream = False)
         self.df_co2_emissions = df_co2_emissions
         self.cv_calibration = cv_calibration
         self.cv_training = cv_training
@@ -257,6 +247,15 @@ class CalibrationModel(RunModel):
 
     def get_calib_var_group(self,grupo): 
         return self.df_calib_bounds.query("group =={}".format(grupo))["variable"].to_list()
+
+
+    @performance_AFOLU
+    def cls_performance_AFOLU(self, df_model_data_project):
+        pass
+
+    @performance_test_AFOLU
+    def cls_performance_test_AFOLU(self, df_model_data_project):
+        pass
 
     """
     ---------------------------------
@@ -280,7 +279,7 @@ class CalibrationModel(RunModel):
             df_input_data = self.build_data_AFOLU(params)
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
-
+            output = self.cls_performance_AFOLU(df_model_data_project)
         if self.subsector_model == "CircularEconomy":
             #print("\n\tRunning CircularEconomy")
             model_circular_economy = CircularEconomy(sa.model_attributes)
@@ -314,62 +313,8 @@ class CalibrationModel(RunModel):
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
-        out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
 
-        '''
-        if self.weight_co2_flag:
-            model_data_co2e = (df_model_data_project[out_vars]*model_weight_co2).sum(axis=1)
-            model_data_co2e = model_data_co2e + df_model_data_project[self.var_co2_emissions_by_sector[self.subsector_model]].sum(axis=1)
 
-        else:
-            model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
-        '''
-
-        #cycle, trend = statsm.tsa.filters.hpfilter((calib["value"].values/1000), 1600)
-        #trend = self.df_co2_emissions.value
-        #trend = [i/1000 for i in trend]
-
-        item_val_afolu = {}
-        item_val_afolu_total_item_fao = {}
-        item_val_afolu_total_item_fao_observado = {}
-        item_val_afolu_percent_diff = {}
-        acumula_total = (self.df_co2_emissions.groupby(["Area_Code","Year"]).sum().reset_index(drop=True).Value/1000).to_numpy()
-
-        for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
-            if vars:
-                item_val_afolu_total_item_fao[item] = df_model_data_project[vars].sum(1)  
-                item_val_afolu_total_item_fao_observado[item] = (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
-                item_val_afolu[item] = (item_val_afolu_total_item_fao[item] - item_val_afolu_total_item_fao_observado[item])**2
-                #item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) / ((self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000))*100
-                item_val_afolu_percent_diff[item] = ((item_val_afolu_total_item_fao[item] - item_val_afolu_total_item_fao_observado[item])/item_val_afolu_total_item_fao_observado[item])*100
-
-        co2_df = pd.DataFrame(item_val_afolu)
-        co2_df_percent_diff = pd.DataFrame(item_val_afolu_percent_diff)
-        self.percent_diff = co2_df_percent_diff
-        self.error_by_item = co2_df
-        self.item_val_afolu_total_item_fao = item_val_afolu_total_item_fao
-        co2_df_total = co2_df.sum(1)
-
-        co2_df_observado = pd.DataFrame(item_val_afolu_total_item_fao_observado)
-
-        ponderadores = (co2_df_observado.mean().abs()/co2_df_observado.mean().abs().sum()).apply(math.exp)   
-        co2_df_total = (ponderadores*co2_df).sum(1)
-
-        if self.cv_calibration:
-            """
-            co2_df_total = np.array([co2_df_total[i] for i in self.cv_training])
-            output = np.mean(co2_df_total)
-            """
-            co2_df_total = [co2_df_total[i] for i in self.cv_training]
-            output = np.sum(co2_df_total)
-
-        else:
-            output = np.sum(co2_df_total)
-            """
-            if any((np.mean(self.percent_diff[["5058","6750"]]).to_numpy()>30).flatten()):
-                return output + 10000000
-            else:
-            """
         return output
 
     """
@@ -411,6 +356,7 @@ class CalibrationModel(RunModel):
             df_input_data = self.build_data_AFOLU(params)
             model_afolu = AFOLU(sa.model_attributes)
             df_model_data_project = model_afolu.project(df_input_data)
+            output = self.cls_performance_test_AFOLU(df_model_data_project)
 
         if self.subsector_model == "CircularEconomy":
             #print("\n\tRunning CircularEconomy")
@@ -445,62 +391,7 @@ class CalibrationModel(RunModel):
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
-        out_vars = self.var_co2_emissions_by_sector[self.subsector_model]
 
-
-        '''
-        if self.weight_co2_flag:
-            model_data_co2e = (df_model_data_project[out_vars]*model_weight_co2).sum(axis=1)
-            model_data_co2e = model_data_co2e + df_model_data_project[self.var_co2_emissions_by_sector[self.subsector_model]].sum(axis=1)
-
-        else:
-            model_data_co2e = df_model_data_project[out_vars].sum(axis=1)
-        '''
-
-        #cycle, trend = statsm.tsa.filters.hpfilter((calib["value"].values/1000), 1600)
-        #trend = self.df_co2_emissions.value
-        #trend = [i/1000 for i in trend]
-
-        item_val_afolu = {}
-        item_val_afolu_percent_diff = {}
-        item_val_afolu_total_item_fao_observado = {}
-
-        acumula_total = (self.df_co2_emissions.groupby(["Area_Code","Year"]).sum().reset_index(drop=True).Value/1000).to_numpy()
-
-        for item, vars in self.var_co2_emissions_by_sector[self.subsector_model].items():
-            if vars:
-                item_val_afolu[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000)**2
-                item_val_afolu_total_item_fao_observado[item] = (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000
-                #item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) / ((self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000))*100
-                item_val_afolu_percent_diff[item] = (df_model_data_project[vars].sum(1) - (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value)/1000) / (self.df_co2_emissions.query("Item_Code=={}".format(item)).drop_duplicates(subset='Year', keep="first").reset_index().Value/1000)
-
-        co2_df = pd.DataFrame(item_val_afolu)
-        co2_df_percent_diff = pd.DataFrame(item_val_afolu_percent_diff)
-        self.percent_diff = co2_df_percent_diff
-        self.error_by_item = co2_df
-        co2_df_total = co2_df.sum(1)
-
-        co2_df_observado = pd.DataFrame(item_val_afolu_total_item_fao_observado)
-
-        ponderadores = (co2_df_observado.mean().abs()/co2_df_observado.mean().abs().sum()).apply(math.exp)
-
-        co2_df_total = (ponderadores*co2_df).sum(1)
-
-        if self.cv_calibration:
-            """
-            co2_df_total = np.array([co2_df_total[i] for i in self.cv_training])
-            output = np.mean(co2_df_total)
-            """
-            co2_df_total = [co2_df_total[i] for i in self.cv_training]
-            output = np.sum(co2_df_total)
-
-        else:
-            output = np.sum(co2_df_total)
-            """
-            if any((np.mean(self.percent_diff[["5058","6750"]]).to_numpy()>30).flatten()):
-                return output + 10000000
-            else:
-            """
         return output
 
 
