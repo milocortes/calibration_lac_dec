@@ -69,7 +69,14 @@ calibration = CalibrationModel(year_init, year_end, df_input_country, target_cou
 X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item()))  for i in calibration.calib_targets["AFOLU"]]
 
 calibration.f(X)
-calibration.run_calibration("pso", population = 100, maxiter = 40)
+
+param_algo = {"alpha" : 0.5, "beta" : 0.8}
+
+calibration.run_calibration("pso", population = 10, maxiter = 10, param_algo = param_algo)
+
+param_algo = {"precision" : 6, "pc" : 0.8}
+calibration.run_calibration("genetic_binary", population = 10, maxiter = 10, param_algo = param_algo)
+
 plt.plot(calibration.fitness_values["AFOLU"])
 plt.show()
 

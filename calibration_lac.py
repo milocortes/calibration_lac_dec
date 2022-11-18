@@ -163,6 +163,34 @@ class RunModel:
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
+        if self.subsector_model == "ElectricEnergy":
+            model_afolu = sm.AFOLU(sa.model_attributes)
+            df_output_data = model_afolu.project(df_input_data)
+
+
+            model_ippu = sm.IPPU(sa.model_attributes)
+
+            df_input_data = sa.model_attributes.transfer_df_variables(
+                df_input_data,
+                df_output_data,
+                model_ippu.integration_variables
+            )
+
+            df_ippu_out = model_ippu.project(df_input_data)
+
+            df_output_data = pd.merge(df_ippu_out, df_output_data)
+
+            model_energy = sm.NonElectricEnergy(sa.model_attributes)
+
+            df_input_data = sa.model_attributes.transfer_df_variables(
+                df_input_data,
+                df_output_data,
+                model_energy.integration_variables_non_fgtv
+            )
+                        
+            df_output_data = model_energy.project(df_input_data)
+                        
+
         return df_model_data_project
 
     """
@@ -313,6 +341,33 @@ class CalibrationModel(RunModel):
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
+        if self.subsector_model == "ElectricEnergy":
+            model_afolu = sm.AFOLU(sa.model_attributes)
+            df_output_data = model_afolu.project(df_input_data)
+
+
+            model_ippu = sm.IPPU(sa.model_attributes)
+
+            df_input_data = sa.model_attributes.transfer_df_variables(
+                df_input_data,
+                df_output_data,
+                model_ippu.integration_variables
+            )
+
+            df_ippu_out = model_ippu.project(df_input_data)
+
+            df_output_data = pd.merge(df_ippu_out, df_output_data)
+
+            model_energy = sm.NonElectricEnergy(sa.model_attributes)
+
+            df_input_data = sa.model_attributes.transfer_df_variables(
+                df_input_data,
+                df_output_data,
+                model_energy.integration_variables_non_fgtv
+            )
+                        
+            df_output_data = model_energy.project(df_input_data)
+                        
 
 
         return output
@@ -391,11 +446,38 @@ class CalibrationModel(RunModel):
 
                 df_model_data_project = model_ippu.project(df_input_data)
 
+        if self.subsector_model == "ElectricEnergy":
+            model_afolu = sm.AFOLU(sa.model_attributes)
+            df_output_data = model_afolu.project(df_input_data)
+
+
+            model_ippu = sm.IPPU(sa.model_attributes)
+
+            df_input_data = sa.model_attributes.transfer_df_variables(
+                df_input_data,
+                df_output_data,
+                model_ippu.integration_variables
+            )
+
+            df_ippu_out = model_ippu.project(df_input_data)
+
+            df_output_data = pd.merge(df_ippu_out, df_output_data)
+
+            model_energy = sm.NonElectricEnergy(sa.model_attributes)
+
+            df_input_data = sa.model_attributes.transfer_df_variables(
+                df_input_data,
+                df_output_data,
+                model_energy.integration_variables_non_fgtv
+            )
+                        
+            df_output_data = model_energy.project(df_input_data)
+                        
 
         return output
 
 
-    def run_calibration(self,optimization_method,population, maxiter):
+    def run_calibration(self,optimization_method,population, maxiter, param_algo):
         '''
         ------------------------------------------
 
@@ -426,9 +508,9 @@ class CalibrationModel(RunModel):
             n_variables = len(self.calib_targets[self.subsector_model])
             i_sup_vec = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "max_35"].item()  for i in self.calib_targets[self.subsector_model]]
             i_inf_vec = [self.df_calib_bounds.loc[self.df_calib_bounds["variable"] == i, "min_35"].item()  for i in self.calib_targets[self.subsector_model]]
-            precision = 8
-
-            binary_genetic = BinaryGenetic(population,n_variables,i_sup_vec,i_inf_vec,precision,maxiter)
+            precision = param_algo["precision"]
+            pc = param_algo["pc"]
+            binary_genetic = BinaryGenetic(population,n_variables,i_sup_vec,i_inf_vec,precision,maxiter,pc)
             self.fitness_values[self.subsector_model], self.best_vector[self.subsector_model] ,mejor_valor= binary_genetic.run_optimization(self.f)
 
             print("--------- End Cross Validation: {} on Node {}\nOptimization time:  {} seconds ".format(self.cv_run ,self.id_mpi,(time.time() - start_time)))
@@ -528,9 +610,10 @@ class CalibrationModel(RunModel):
             # 3 - Parameters for the algorithm
             pop_size = population   # number of individuals in the population
             # Cognitive scaling parameter
-            α = 0.8
+            α = param_algo["alpha"]
             # Social scaling parameter
-            β = 0.8
+            β = param_algo["beta"]
+
             # velocity inertia
             w = 0.5
             # minimum value for the velocity inertia

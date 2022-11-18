@@ -97,20 +97,27 @@ def SELECCION(aptitud,tipo,n_variables,población):
 
     return individuos_dict
 
-def CRUZA(seleccion,tipo,length_total_cromosoma):
+def CRUZA(seleccion,tipo,length_total_cromosoma,prob_c):
     if tipo == "unpunto":
         n = len(seleccion)
 
         nueva_poblacion = []
 
         for pareja in range(n):
-            punto_cruza = random.randint(0, length_total_cromosoma)
+            
+            aleatorio_pc = random.random()
+            
+            if aleatorio_pc < prob_c:
+                punto_cruza = random.randint(0, length_total_cromosoma)
 
-            primer_nuevo_individuo = seleccion[pareja][0][0:punto_cruza] + seleccion[pareja][1][punto_cruza:length_total_cromosoma]
-            segundo_nuevo_individuo = seleccion[pareja][1][0:punto_cruza] + seleccion[pareja][0][punto_cruza:length_total_cromosoma]
+                primer_nuevo_individuo = seleccion[pareja][0][0:punto_cruza] + seleccion[pareja][1][punto_cruza:length_total_cromosoma]
+                segundo_nuevo_individuo = seleccion[pareja][1][0:punto_cruza] + seleccion[pareja][0][punto_cruza:length_total_cromosoma]
 
-            nueva_poblacion.append(primer_nuevo_individuo)
-            nueva_poblacion.append(segundo_nuevo_individuo)
+                nueva_poblacion.append(primer_nuevo_individuo)
+                nueva_poblacion.append(segundo_nuevo_individuo)
+            else:
+                nueva_poblacion.append(seleccion[pareja][0])
+                nueva_poblacion.append(seleccion[pareja][1])
 
     return nueva_poblacion
 
@@ -144,13 +151,14 @@ def MUTACION(nueva_poblacion,length_total_cromosoma,n_variables,dimension_vec):
 class BinaryGenetic(object):
     """docstring for BinaryGenetic."""
 
-    def __init__(self,population,n_variables,i_sup_vec,i_inf_vec,precision,maxiter):
+    def __init__(self,population,n_variables,i_sup_vec,i_inf_vec,precision,maxiter,pc):
         self.m = population
         self.n_variables = n_variables
         self.i_sup_vec = i_sup_vec
         self.i_inf_vec = i_inf_vec
         self.precision = precision
         self.maxiter = maxiter
+        self.pc = pc
 
     def run_optimization(self,f):
         dimension_vec = []
@@ -184,7 +192,7 @@ class BinaryGenetic(object):
 
             aptitud = APTITUD(objv,"min")
             seleccion = SELECCION(aptitud,"ruleta",self.n_variables,genotipo)
-            genotipo = CRUZA(seleccion,"unpunto",length_total_cromosoma)
+            genotipo = CRUZA(seleccion,"unpunto",length_total_cromosoma, self.pc)
             genotipo = MUTACION(genotipo,length_total_cromosoma,self.n_variables,dimension_vec)
             feno = DECODE(self.n_variables,self.m,self.i_sup_vec,self.i_inf_vec,dimension_vec,genotipo)
             objv = OBJFUN(f,feno,True,1)
@@ -195,6 +203,9 @@ class BinaryGenetic(object):
             if objv[mejor_individuo] < mejor_valor:
                 mejor_valor = objv[mejor_individuo]
                 mejor_vector = feno[mejor_individuo]
+
+            print("It {}  gbest_val {}".format(it, mejor_valor))
+            
             fitness_values.append(mejor_valor)
         best_vector = mejor_vector
 
