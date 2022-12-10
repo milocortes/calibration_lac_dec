@@ -4,12 +4,3 @@ name_file <-"prices.csv"
 data <- read.csv(paste0(dir_data,name_file))
 
 strsplit(data$TIMESERIES, ".")
-
-
-for ()
-{
-  i<-1
-
-}
-
-
