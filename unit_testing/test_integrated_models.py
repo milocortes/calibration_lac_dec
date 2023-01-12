@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 from sisepuede_calibration.calibration_lac import CalibrationModel
 
-data_path = "/home/milo/Documents/egap/SISEPUEDE/packaging_projects/github_projects/sisepuede_calibration_dev/unit_testing/data_test"
+data_path = "https://raw.githubusercontent.com/milocortes/calibration_lac_dec/main/unit_testing/data_test"
 
 #df_input_all_countries = pd.read_csv( os.path.join(data_path, "real_data_2023_01_11.csv"))
 df_input_all_countries = pd.read_csv( os.path.join(data_path, "real_data_2023_01_11_energy.csv"))
