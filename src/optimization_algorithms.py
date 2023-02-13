@@ -1,6 +1,6 @@
 from scipy.stats.qmc import LatinHypercube,scale
 import math
-
+import numpy as np
 
 # Definimos la clase Particle
 class Particle:
