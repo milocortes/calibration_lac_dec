@@ -1,6 +1,6 @@
 import os
 
-os.environ['LAC_PATH'] = '/home/milo/Documents/egtp/LAC-dec/lac_decarbonization'
+os.environ['LAC_PATH'] = '/home/milo/Documents/julia/lac_decarbonization'
 
 import sys
 import pandas as pd
@@ -88,7 +88,7 @@ AFOLU_fao_correspondence = json.load(open(os.path.join(data_path,"AFOLU_fao_corr
 AFOLU_fao_correspondence = {k:v for k,v in AFOLU_fao_correspondence.items() if v}
 
 calibration = CalibrationModel(year_init+2014, year_end +2014, df_input_country, correspondece_iso_names[target_country], models_run,
-                                calib_targets, df_calib_targets,df_input_country_all_time_period,
+                                calib_targets, calib_bounds, df_calib_targets, df_input_country_all_time_period,
                                 df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4)
 
 X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item()))  for i in calibration.calib_targets["AFOLU"]]
@@ -151,7 +151,7 @@ df_co2_observed_data.rename(columns = {"Value" : "value"}, inplace = True)
 
 # Instance of CalibrationModel
 calibration_circ_ec = CalibrationModel(year_init, year_end, df_input_country, correspondece_iso_names[target_country], models_run,
-                                calib_targets_circular_economy, calib_bounds,df_input_country_all_time_period,
+                                calib_targets_circular_economy, calib_bounds, df_calib_targets, df_input_country_all_time_period,
                                 df_co2_observed_data,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4, run_integrated_q = True)
 # Test function evaluation
 X = [np.mean((calibration_circ_ec.df_calib_bounds.loc[calibration_circ_ec.df_calib_bounds["variable"] == i, "min_35"].item(),calibration_circ_ec.df_calib_bounds.loc[calibration_circ_ec.df_calib_bounds["variable"] == i, "max_35"].item() +0.01))  for i in calibration_circ_ec.calib_targets["CircularEconomy"]]
@@ -214,7 +214,7 @@ df_co2_observed_data.rename(columns = {"Value" : "value"}, inplace = True)
 
 # Instance of CalibrationModel
 calibration_ippu = CalibrationModel(year_init, year_end, df_input_country, correspondece_iso_names[target_country], models_run,
-                                calib_targets_ippu, calib_bounds,df_input_country_all_time_period,
+                                calib_targets_ippu, calib_bounds, df_calib_targets, df_input_country_all_time_period,
                                 df_co2_observed_data,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4, run_integrated_q = True)
 # Test function evaluation
 X = [np.mean((calibration_ippu.df_calib_bounds.loc[calibration_ippu.df_calib_bounds["variable"] == i, "min_35"].item(),calibration_ippu.df_calib_bounds.loc[calibration_ippu.df_calib_bounds["variable"] == i, "max_35"].item() +0.01))  for i in calibration_ippu.calib_targets["IPPU"]]
@@ -289,7 +289,7 @@ calib_targets_energy = calib_bounds['variable']
 
 # Instance of CalibrationModel
 calibration_Allenergy = CalibrationModel(year_init, year_end, df_input_country, correspondece_iso_names[target_country], models_run,
-                                calib_targets_energy, calib_bounds,df_input_country_all_time_period,
+                                calib_targets_energy, calib_bounds, df_calib_targets, df_input_country_all_time_period,
                                 energy_observado, energy_correspondence, cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4, run_integrated_q = True)
 
 calibration_Allenergy.set_best_vector("AFOLU",calibration_vector_AFOLU)
@@ -304,20 +304,21 @@ output_data_AllEnergy = calibration_Allenergy.get_output_data([1]*177, print_sec
 calibrated_data_AllEnergy = calibration_Allenergy.get_calibrated_data([1]*177, print_sector_model = True)
 
 # Test function evaluation
-X = [np.mean((calibration_Allenergy.df_calib_bounds.loc[calibration_Allenergy.df_calib_bounds["variable"] == i, "min_35"].item(),calibration_Allenergy.df_calib_bounds.loc[calibration_Allenergy.df_calib_bounds["variable"] == i, "max_35"].item() +0.01))  for i in calibration_Allenergy.calib_targets["AllEnergy"]]
-calibration_Allenergy.f(X)
+#X = [np.mean((calibration_Allenergy.df_calib_bounds.loc[calibration_Allenergy.df_calib_bounds["variable"] == i, "min_35"].item(),calibration_Allenergy.df_calib_bounds.loc[calibration_Allenergy.df_calib_bounds["variable"] == i, "max_35"].item() +0.01))  for i in calibration_Allenergy.calib_targets["AllEnergy"]]
+#calibration_Allenergy.f(X)
 
 
 ### ENERGY CALIBRATION
+print("INICIA LA CALIBRACION DE ENERGIA")
 from optimization_algorithms import PSO
 
 # Tamaño de la población
-n = 20
+n = 5
 # Número de variables
 n_var = len(calib_targets_energy)
 l_bounds = np.array(calib_bounds["min_35"])
 u_bounds = np.array(calib_bounds["max_35"])
-maxiter =  10
+maxiter =  1
 # Social scaling parameter
 α = 0.8
 # Cognitive scaling parameter
@@ -329,8 +330,8 @@ fitness_pso, x_best_pso = PSO(calibration_Allenergy.f, n, maxiter, n_var, l_boun
 
 output_data_AllEnergy = calibration_Allenergy.get_output_data(x_best_pso, print_sector_model = True)
 calibrated_data_AllEnergy = calibration_Allenergy.get_calibrated_data(x_best_pso, print_sector_model = True)
-
-
+calibrated_data_AllEnergy["iso_code3"] = target_country
+calibrated_data_AllEnergy = calibrated_data_AllEnergy[["time_period","iso_code3"]+[i for i in calibrated_data_AllEnergy.columns if i not in ["time_period","iso_code3"]]]
 
 
 ###############################
@@ -352,8 +353,8 @@ for subsector, sisepuede_vars in calibration_Allenergy.var_co2_emissions_by_sect
 
 
 for k,v in energy_crosswalk_estimado.items():
-    plt.plot(energy_crosswalk_estimado[k])
-    plt.plot(energy_crosswalk_observado[k])
+    plt.plot(energy_crosswalk_estimado[k], label = "Estimado")
+    plt.plot(energy_crosswalk_observado[k], label = "Histórico")
     plt.title(f"País : {target_country}. Sector : {models_run}. Subsector : {k}. Calibración integrada")
     plt.legend()
     #plt.show()
