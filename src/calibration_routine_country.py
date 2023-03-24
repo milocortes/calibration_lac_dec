@@ -1,6 +1,6 @@
 import os
 
-os.environ['LAC_PATH'] = '/home/milo/Documents/julia/lac_decarbonization'
+os.environ['LAC_PATH'] = '/home/milo/Documents/egap/calibration/lac_decarbonization'
 
 import sys
 import pandas as pd
@@ -12,7 +12,8 @@ from sisepuede_calibration.calibration_lac import CalibrationModel
 
 
 # Set directories
-dir_path = os.path.dirname(os.path.realpath(__file__))
+#dir_path = os.path.dirname(os.path.realpath(__file__))
+dir_path = os.getcwd()
 data_path = os.path.abspath(os.path.join(dir_path,"..","data","inputs_sisepuede" ))
 save_data_path = os.path.abspath(os.path.join(dir_path,"..","output" ))
 
@@ -22,92 +23,85 @@ country_names_lac = ['argentina', 'bahamas', 'barbados', 'belize', 'bolivia', 'b
 
 correspondece_iso_names = {x:y for x,y in zip(iso3_codes_lac, country_names_lac)}
 
-# Load input data
-df_input_all_countries = pd.read_csv( os.path.join(data_path, "sisepuede_aggregate_calibration_db_20220207.csv"))
+# Load input data sisepuede_aggregate_calibration_db_20220303.csv
+df_input_all_countries = pd.read_csv( os.path.join(data_path, "sisepuede_aggregate_calibration_db_20220303.csv"))
 
 # Define target country
-target_country = sys.argv[1]
+#target_country = sys.argv[1]
+target_country = "BRA"
+
+#### Load calib targets by model to run
+## Calib bounds
+df_calib_targets =  pd.read_csv( os.path.join(data_path, "calib_bounds_sector.csv") )
+
+### Load calib targets
+calib_targets_all_sectors =  pd.read_csv( os.path.join(data_path, "calib_targets_all_sectors.csv") )
+
+# Load observed CO2 data
+df_co2_observed_data = {"AFOLU" : pd.read_csv(os.path.join(data_path, "emissions_targets_promedios_iso_code3.csv")),
+                        "CircularEconomy": pd.read_csv(os.path.join(data_path, "ghg_LAC_circular_ippu_iso_code3.csv")),
+                        "IPPU" : pd.read_csv(os.path.join(data_path, "ghg_LAC_circular_ippu_iso_code3.csv")),
+                        "AllEnergy" : pd.read_csv(os.path.join(data_path, "ghg_LAC_energy_iso_code3.csv"))}
+
+
+# Define lower and upper time bounds
+year_init,year_end = 0,5
+
+# Subset input data
+df_input_country = df_input_all_countries.query("iso_code3 =='{}' and (time_period>={} and time_period<={})".format(target_country,year_init,year_end)).reset_index().drop(columns=["index"])
+
+df_input_country_all_time_period = df_input_all_countries.query("iso_code3 =='{}'".format(target_country)).reset_index().drop(columns=["index"])
 
 """
 
-#### RUN AFOLU MODEL
+#### RUN AFOLU CALIBRATION
 
 """
 
 # Set model to run
 models_run = "AFOLU"
 
-# Load observed CO2 data
-#df_co2_observed_data = pd.read_csv( os.path.join(data_path, "emissions_targets.csv") )
-df_co2_observed_data = pd.read_csv( os.path.join(data_path, "emissions_targets_promedios_iso_code3.csv") )
-df_co2_observed_data.Nation = df_co2_observed_data.Nation.str.lower()
+# AFOLU calibration targets
+calib_targets_afolu = calib_targets_all_sectors.query(f"sector =='{models_run}'")["calib_targets"].reset_index(drop = True)
 
-# Load calib targets by model to run
-df_calib_targets =  pd.read_csv( os.path.join(data_path, "calib_bounds_sector.csv") )
-
-remueve_calib = ['qty_soil_organic_c_stock_dry_climate_tonne_per_ha',
- 'qty_soil_organic_c_stock_temperate_crop_grass_tonne_per_ha',
- 'qty_soil_organic_c_stock_temperate_forest_nutrient_poor_tonne_per_ha',
- 'qty_soil_organic_c_stock_temperate_forest_nutrient_rich_tonne_per_ha',
- 'qty_soil_organic_c_stock_tropical_crop_grass_tonne_per_ha',
- 'qty_soil_organic_c_stock_tropical_forest_tonne_per_ha',
- 'qty_soil_organic_c_stock_wet_climate_tonne_per_ha',
- 'scalar_lvst_carrying_capacity','frac_soil_soc_loss_in_cropland']
-
-df_calib_targets = df_calib_targets[~df_calib_targets.variable.isin(remueve_calib)]
-calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run)).reset_index(drop = True)
-#calib_bounds = calib_bounds.query("variable !='pij_calib'")
-
-calib_bounds_groups = calib_bounds.groupby("group")
-indices_params = list(calib_bounds_groups.groups[0])
-
-for i,j in calib_bounds_groups.groups.items():
-    if i!=0:
-        indices_params.append(j[0])
-
-calib_targets = calib_bounds['variable'].iloc[indices_params].reset_index(drop=True)
-#calib_targets = calib_targets.append(pd.Series("pij_calib"),ignore_index=True)
+# AFOLU CO2 observed data
+df_co2_observed_data_afolu = df_co2_observed_data[models_run].query("model == '{}' and iso_code3=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init+2014,year_end+2014))
 
 
-# Define lower and upper time bounds
-year_init,year_end = 0,5
-
-df_input_country = df_input_all_countries.query("iso_code3 =='{}' and (time_period>={} and time_period<={})".format(target_country,year_init,year_end)).reset_index().drop(columns=["index"])
-df_input_country["time_period"] = list(range(1+(year_end-year_init)))
-
-
-t_times = range(year_init, year_end+1)
-df_co2_observed_data = df_co2_observed_data.query("model == '{}' and iso_code3=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init+2014,year_end+2014))
-
-df_input_country_all_time_period = df_input_all_countries.query("iso_code3 =='{}'".format(target_country)).reset_index().drop(columns=["index"])
-
-# AFOLU FAO co2 - SISEPUEDE
+# AFOLU FAO crosswalk co2 - SISEPUEDE
 import json
 
 AFOLU_fao_correspondence = json.load(open(os.path.join(data_path,"AFOLU_fao_correspondence.json"), "r"))
 AFOLU_fao_correspondence = {k:v for k,v in AFOLU_fao_correspondence.items() if v}
 
+# Instance CalibrationModel object
 calibration = CalibrationModel(year_init+2014, year_end +2014, df_input_country, correspondece_iso_names[target_country], models_run,
-                                calib_targets, calib_bounds, df_calib_targets, df_input_country_all_time_period,
-                                df_co2_observed_data,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4)
+                                calib_targets_afolu, df_calib_targets, df_calib_targets, df_input_country_all_time_period,
+                                df_co2_observed_data_afolu,AFOLU_fao_correspondence,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4)
 
+# Test function evaluation with a random calibration vector
 X = [np.mean((calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "min_35"].item(),calibration.df_calib_bounds.loc[calibration.df_calib_bounds["variable"] == i, "max_35"].item()))  for i in calibration.calib_targets["AFOLU"]]
 
+# Evaluate random calibration vector in the function to minimize
 calibration.f(X)
 
+# Setup optimization algorithm parameters and run calibration with PSO  
 param_algo = {"alpha" : 0.5, "beta" : 0.8}
-
-calibration.run_calibration("pso", population = 20, maxiter = 10, param_algo = param_algo)
+calibration.run_calibration("pso", population = 10, maxiter = 10, param_algo = param_algo)
 
 #plt.plot(calibration.fitness_values["AFOLU"])
 #plt.show()
 
+# Get calibration vector
 calibration_vector_AFOLU = calibration.best_vector["AFOLU"]
 
+# Save calibration vector
 with open(os.path.join(save_data_path, "calib_vectors", f'calibration_vector_AFOLU_{target_country}.pickle'), 'wb') as f:
     pickle.dump(calibration_vector_AFOLU, f)
 
+# Plot historical vs simulated data
 output_data = calibration.get_output_data(calibration_vector_AFOLU, print_sector_model = True)
+
 #calibration.build_bar_plot_afolu(calibration.best_vector["AFOLU"], show = True)
 
 item_val_afolu = {}
@@ -115,7 +109,7 @@ observed_val_afolu = {}
 for item, vars in AFOLU_fao_correspondence.items():
     if vars:
         item_val_afolu[item] = output_data[vars].sum(1).to_list()
-        observed_val_afolu[item] = (df_co2_observed_data.query("Item_Code=={}".format(item)).Value/1000).to_list()
+        observed_val_afolu[item] = (df_co2_observed_data_afolu.query("Item_Code=={}".format(item)).Value/1000).to_list()
 
 observed_val_afolu = {k:v for k,v in observed_val_afolu.items() if len(v) > 0}
 
@@ -131,39 +125,37 @@ plt.close()
 
 """
 
-#### RUN CircularEconomy MODEL
+#### RUN CircularEconomy CALIBRATION
 
 """
 
 models_run = "CircularEconomy"
 
-# Load observed CO2 data
-df_co2_observed_data = pd.read_csv( os.path.join(data_path, "ghg_LAC_circular_ippu_iso_code3.csv") )
 
+# CircularEconomy calibration targets
+calib_targets_circular_economy = calib_targets_all_sectors.query(f"sector =='{models_run}'")["calib_targets"].reset_index(drop = True)
 
-calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run))
-calib_targets_circular_economy = calib_bounds['variable']
-
-df_co2_observed_data = df_co2_observed_data.query("model == '{}' and iso_code3=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init+2014,year_end+2014))
-
-df_co2_observed_data.rename(columns = {"Value" : "value"}, inplace = True)
-
+# CircularEconomy CO2 observed data
+df_co2_observed_data_circular_economy = df_co2_observed_data[models_run].query("model == '{}' and iso_code3=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init+2014,year_end+2014))
 
 # Instance of CalibrationModel
 calibration_circ_ec = CalibrationModel(year_init, year_end, df_input_country, correspondece_iso_names[target_country], models_run,
-                                calib_targets_circular_economy, calib_bounds, df_calib_targets, df_input_country_all_time_period,
-                                df_co2_observed_data,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4, run_integrated_q = True)
-# Test function evaluation
+                                calib_targets_circular_economy, df_calib_targets, df_calib_targets, df_input_country_all_time_period,
+                                df_co2_observed_data_circular_economy, cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4, run_integrated_q = True)
+
+# Test function evaluation with a random calibration vector
 X = [np.mean((calibration_circ_ec.df_calib_bounds.loc[calibration_circ_ec.df_calib_bounds["variable"] == i, "min_35"].item(),calibration_circ_ec.df_calib_bounds.loc[calibration_circ_ec.df_calib_bounds["variable"] == i, "max_35"].item() +0.01))  for i in calibration_circ_ec.calib_targets["CircularEconomy"]]
+
+# Set calibrated vector for each sector estimated
 calibration_circ_ec.set_best_vector("AFOLU",calibration_vector_AFOLU)
+
+# Evaluate random calibration vector in the function to minimize
 calibration_circ_ec.f(X)
 
 
-# Setup and run calibration with PSO
-
+# Setup optimization algorithm parameters and run calibration with PSO  
 parameters_algo = {"alpha" : 0.5, "beta" : 0.8}
-
-calibration_circ_ec.run_calibration("pso", population = 20, maxiter = 10, param_algo = parameters_algo)
+calibration_circ_ec.run_calibration("pso", population = 10, maxiter = 10, param_algo = parameters_algo)
 
 # Check fitness
 #plt.plot(calibration_circ_ec.fitness_values["CircularEconomy"])
@@ -181,7 +173,7 @@ with open(os.path.join(save_data_path, "calib_vectors", f'calibration_vector_Cir
 output_data = calibration_circ_ec.get_output_data(calibration_vector_CircularEconomy, print_sector_model = True)
 
 co2_computed = output_data[calibration_circ_ec.var_co2_emissions_by_sector["CircularEconomy"]].sum(axis=1)
-plt.plot(range(year_init,year_end+1),[i/1000 for i in df_co2_observed_data.value],label="historico")
+plt.plot(range(year_init,year_end+1),[i/1000 for i in df_co2_observed_data_circular_economy.value],label="historico")
 plt.plot(range(year_init,year_end+1),co2_computed,label="estimado")
 plt.title(f"País : {target_country}. Sector : {models_run}. Calibración integrada")
 plt.legend()
@@ -190,45 +182,38 @@ plt.close()
 
 """
 
-#### RUN IPPU MODEL
+#### RUN IPPU CALIBRATION
 
 """
 
 # Set model to run
 models_run = "IPPU"
 
-# Load observed CO2 data
-df_co2_observed_data = pd.read_csv( os.path.join(data_path, "ghg_LAC_circular_ippu_iso_code3.csv") )
+# IPPU calibration targets
+calib_targets_ippu = calib_targets_all_sectors.query(f"sector =='{models_run}'")["calib_targets"].reset_index(drop = True)
 
-
-calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run))
-calib_targets_ippu = calib_bounds['variable']
-
-remueve_ippu = ['demscalar_ippu_recycled_textiles', 'demscalar_ippu_recycled_glass', 'demscalar_ippu_recycled_plastic', 'demscalar_ippu_recycled_metals', 'demscalar_ippu_recycled_paper', 'demscalar_ippu_recycled_rubber_and_leather', 'demscalar_ippu_recycled_wood']
-calib_targets_ippu = calib_targets_ippu[~calib_targets_ippu.isin(remueve_ippu)]
-
-df_co2_observed_data = df_co2_observed_data.query("model == '{}' and iso_code3=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init+2014,year_end+2014))
-
-df_co2_observed_data.rename(columns = {"Value" : "value"}, inplace = True)
-
+# IPPU CO2 observed data
+df_co2_observed_data_ippu = df_co2_observed_data[models_run].query("model == '{}' and iso_code3=='{}' and (Year >= {} and Year <= {} )".format(models_run,target_country,year_init+2014,year_end+2014))
 
 # Instance of CalibrationModel
 calibration_ippu = CalibrationModel(year_init, year_end, df_input_country, correspondece_iso_names[target_country], models_run,
-                                calib_targets_ippu, calib_bounds, df_calib_targets, df_input_country_all_time_period,
-                                df_co2_observed_data,cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4, run_integrated_q = True)
-# Test function evaluation
+                                calib_targets_ippu, df_calib_targets, df_calib_targets, df_input_country_all_time_period,
+                                df_co2_observed_data_ippu, cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4, run_integrated_q = True)
+
+# Test function evaluation with a random calibration vector
 X = [np.mean((calibration_ippu.df_calib_bounds.loc[calibration_ippu.df_calib_bounds["variable"] == i, "min_35"].item(),calibration_ippu.df_calib_bounds.loc[calibration_ippu.df_calib_bounds["variable"] == i, "max_35"].item() +0.01))  for i in calibration_ippu.calib_targets["IPPU"]]
 
+# Set calibrated vector for each sector estimated
 calibration_ippu.set_best_vector("AFOLU",calibration_vector_AFOLU)
 calibration_ippu.set_best_vector("CircularEconomy",calibration_vector_CircularEconomy)
 calibration_ippu.set_calib_targets("CircularEconomy", calib_targets_circular_economy)
+
+# Evaluate random calibration vector in the function to minimize
 calibration_ippu.f(X)
 
-# Setup and run calibration with PSO
-
+# Setup optimization algorithm parameters and run calibration with PSO  
 parameters_algo = {"alpha" : 0.5, "beta" : 0.8}
-
-calibration_ippu.run_calibration("pso", population = 20, maxiter = 10, param_algo = parameters_algo)
+calibration_ippu.run_calibration("pso", population = 10, maxiter = 10, param_algo = parameters_algo)
 
 # Check fitness
 #plt.plot(calibration_ippu.fitness_values["IPPU"])
@@ -242,18 +227,18 @@ with open(os.path.join(save_data_path, "calib_vectors", f'calibration_vector_IPP
 output_data = calibration_ippu.get_output_data(calibration_vector_IPPU, print_sector_model = True)
 
 co2_computed = output_data[calibration_ippu.var_co2_emissions_by_sector["IPPU"]].sum(axis=1)
-plt.plot([i/1000 for i in df_co2_observed_data.value],label="historico")
+plt.plot([i/1000 for i in df_co2_observed_data_ippu.value],label="historico")
 plt.plot(co2_computed,label="estimado")
 plt.title(f"País : {target_country}. Sector : {models_run}. Calibración integrada")
 plt.legend()
 plt.savefig(os.path.join(save_data_path, f"{models_run}_{target_country}.png"))
 plt.close()
 
-output_data_ippu = calibration_ippu.get_output_data(calibration_vector_IPPU, print_sector_model = True)
+#output_data_ippu = calibration_ippu.get_output_data(calibration_vector_IPPU, print_sector_model = True)
 
 """
 
-#### RUN AllEnergy MODEL
+#### RUN AllEnergy CALIBRATION
 
 """
 
@@ -270,28 +255,28 @@ with open(f'calibration_vector_IPPU_{target_country}.pickle', 'rb') as f:
     calibration_vector_IPPU = pickle.load(f)
 """
 
-## Load crosswalk
-import json
-energy_correspondence = json.load(open(os.path.join(data_path, "energy_subsector_items.json") , "r"))
-
-## Load CO2 observation
-energy_observado = pd.read_csv(os.path.join(data_path, "ghg_LAC_energy_iso_code3.csv"))
-energy_observado = energy_observado.query(f"iso_code3=='{target_country}' and (variable >= 2014 and variable <=2019)").reset_index(drop = True)
-
 # Set model to run
 models_run = "AllEnergy"
 
-calib_bounds = df_calib_targets.query("sector =='{}'".format(models_run))
-calib_bounds = calib_bounds.query("not(min_35==1 and max_35==1)").reset_index(drop = True)
-calib_targets_energy = calib_bounds['variable']
+## Load Energy crosswalk
+import json
+energy_correspondence = json.load(open(os.path.join(data_path, "energy_subsector_items.json") , "r"))
 
+# AllEnergy calibration targets
+calib_targets_energy = calib_targets_all_sectors.query(f"sector =='{models_run}'")["calib_targets"].reset_index(drop = True)
+
+
+# AllEnergy CO2 observed data
+energy_observado = df_co2_observed_data[models_run].query(f"iso_code3=='{target_country}' and (variable >= 2014 and variable <=2019)").reset_index(drop = True)
 
 
 # Instance of CalibrationModel
 calibration_Allenergy = CalibrationModel(year_init, year_end, df_input_country, correspondece_iso_names[target_country], models_run,
-                                calib_targets_energy, calib_bounds, df_calib_targets, df_input_country_all_time_period,
+                                calib_targets_energy, df_calib_targets, df_calib_targets, df_input_country_all_time_period,
                                 energy_observado, energy_correspondence, cv_training = [0,1,2,3,4,5] ,cv_calibration = False,precition=4, run_integrated_q = True)
 
+# Test function evaluation with a random calibration vector
+# Set calibrated vector for each sector estimated
 calibration_Allenergy.set_best_vector("AFOLU",calibration_vector_AFOLU)
 
 calibration_Allenergy.set_best_vector("CircularEconomy",calibration_vector_CircularEconomy)
@@ -300,8 +285,8 @@ calibration_Allenergy.set_calib_targets("CircularEconomy", calib_targets_circula
 calibration_Allenergy.set_best_vector("IPPU",calibration_vector_IPPU)
 calibration_Allenergy.set_calib_targets("IPPU", calib_targets_ippu)
 
-output_data_AllEnergy = calibration_Allenergy.get_output_data([1]*177, print_sector_model = True)
-calibrated_data_AllEnergy = calibration_Allenergy.get_calibrated_data([1]*177, print_sector_model = True)
+output_data_AllEnergy = calibration_Allenergy.get_output_data([1]*len(calib_targets_energy), print_sector_model = True)
+#calibrated_data_AllEnergy = calibration_Allenergy.get_calibrated_data([1]*len(calib_targets_energy), print_sector_model = True)
 
 # Test function evaluation
 #X = [np.mean((calibration_Allenergy.df_calib_bounds.loc[calibration_Allenergy.df_calib_bounds["variable"] == i, "min_35"].item(),calibration_Allenergy.df_calib_bounds.loc[calibration_Allenergy.df_calib_bounds["variable"] == i, "max_35"].item() +0.01))  for i in calibration_Allenergy.calib_targets["AllEnergy"]]

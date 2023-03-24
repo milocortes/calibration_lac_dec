@@ -1,4 +1,4 @@
-Nation,Year,Value,model,iso_code3
+Nation,Year,value,model,iso_code3
 argentina,1990,11000.0,CircularEconomy,ARG
 argentina,1991,11250.0,CircularEconomy,ARG
 argentina,1992,11500.0,CircularEconomy,ARG
