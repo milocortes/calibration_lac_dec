@@ -142,8 +142,13 @@ maxiter =  5
 # velocity inertia
 w = 0.5
 
+# velocity inertia
+w = 0.5
+# minimum value for the velocity inertia
+w_min = 0.4
 # maximum value for the velocity inertia
 w_max = 0.9
+
 
 # Velocidad máxima
 vMax = np.multiply(u_bounds-l_bounds,0.2)
