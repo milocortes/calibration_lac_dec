@@ -205,7 +205,7 @@ elif OPTIMIZATION_STAGE == 'EVOLUTIVE_CYCLE':
         value_x_best = pickle.load(f)
 
     with open(f'PSO_k_it_{ID_IND}.pickle', 'rb') as f:
-        k_it = int(pickle.load(f))
+        k_it = pickle.load(f)
 
     print(f"{OPTIMIZATION_STAGE}\nIteration {k_it}")
 
@@ -248,7 +248,8 @@ elif OPTIMIZATION_STAGE == 'EVOLUTIVE_CYCLE':
 
     if not all(np.array(best_global_vector)==particula.x):
         if y < value_x_best:
-            P.x_best = np.copy(particula.x)
+            particula.x_best = np.copy(particula.x)
+            value_x_best = y
 
     # Actualizamos w
 
@@ -264,7 +265,7 @@ elif OPTIMIZATION_STAGE == 'EVOLUTIVE_CYCLE':
         pickle.dump(particula.v, f)
 
     with open(f'PSO_value_x_best_{ID_IND}.pickle', 'wb') as f:
-        pickle.dump(value_f, f)
+        pickle.dump(value_x_best, f)
     
     with open(f'PSO_k_it_{ID_IND}.pickle', 'wb') as f:
         pickle.dump(k_it, f)
