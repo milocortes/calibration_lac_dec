@@ -183,8 +183,10 @@ if OPTIMIZATION_STAGE == 'INIT_POP':
     with open(f'PSO_value_x_best_{ID_IND}.pickle', 'wb') as f:
         pickle.dump(value_f, f)
 
+    with open(f'PSO_k_it_{ID_IND}.pickle', 'wb') as f:
+        pickle.dump(0, f)
+
 elif OPTIMIZATION_STAGE == 'EVOLUTIVE_CYCLE':
-    print(OPTIMIZATION_STAGE)
     with open(f'PSO_x_best_{ID_IND}.pickle', 'rb') as f:
         x_best = pickle.load(f)
 
@@ -197,6 +199,10 @@ elif OPTIMIZATION_STAGE == 'EVOLUTIVE_CYCLE':
     with open(f'PSO_value_x_best_{ID_IND}.pickle', 'rb') as f:
         value_x_best = pickle.load(f)
 
+    with open(f'PSO_k_it_{ID_IND}.pickle', 'rb') as f:
+        k_it = int(pickle.load(f))
+
+    print(f"{OPTIMIZATION_STAGE}\nIteration {k_it}")
 
     particula = Particle(x_pos, velocity)
 
@@ -241,7 +247,7 @@ elif OPTIMIZATION_STAGE == 'EVOLUTIVE_CYCLE':
 
     # Actualizamos w
 
-    w = w_max - k * ((w_max-w_min)/maxiter)
+    w = w_max - k_it * ((w_max-w_min)/maxiter)
 
     with open(f'PSO_x_best_{ID_IND}.pickle', 'wb') as f:
         pickle.dump(particula.x_best, f)
@@ -254,3 +260,6 @@ elif OPTIMIZATION_STAGE == 'EVOLUTIVE_CYCLE':
 
     with open(f'PSO_value_x_best_{ID_IND}.pickle', 'wb') as f:
         pickle.dump(value_f, f)
+    
+    with open(f'PSO_k_it_{ID_IND}.pickle', 'wb') as f:
+        pickle.dump(k_it, f)
