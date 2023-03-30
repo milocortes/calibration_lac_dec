@@ -255,8 +255,8 @@ elif OPTIMIZATION_STAGE == 'EVOLUTIVE_CYCLE':
 
     w = w_max - k_it * ((w_max-w_min)/maxiter)
 
-    k_it += k_it
-     
+    k_it += 1
+
     with open(f'PSO_x_best_{ID_IND}.pickle', 'wb') as f:
         pickle.dump(particula.x_best, f)
 
