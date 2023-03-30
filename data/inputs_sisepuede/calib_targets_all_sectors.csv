@@ -92,7 +92,6 @@ demscalar_ippu_electronics,IPPU
 demscalar_ippu_plastic,IPPU
 demscalar_ippu_glass,IPPU
 demscalar_ippu_chemicals,IPPU
-gdp_mmm_usd,IPPU
 density_wali_kg_n_per_m3_ww_industrial,CircularEconomy
 logelasticity_wali_qty_prod_to_gdp_per_capita,CircularEconomy
 physparam_wali_bo_tonne_ch4_tonne_bod,CircularEconomy

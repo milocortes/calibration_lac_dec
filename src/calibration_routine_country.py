@@ -39,7 +39,7 @@ calib_targets_all_sectors =  pd.read_csv( os.path.join(data_path, "calib_targets
 
 # Load observed CO2 data
 df_co2_observed_data = {"AFOLU" : pd.read_csv(os.path.join(data_path, "emissions_targets_promedios_iso_code3.csv")),
-                        "CircularEconomy": pd.read_csv(os.path.join(data_path, "ghg_LAC_circular_ippu_iso_code3.csv")),
+                        "CircularEconomy": pd.read_csv(os.path.join(data_path, "ghg_LAC_circular_ce_iso_code3.csv")),
                         "IPPU" : pd.read_csv(os.path.join(data_path, "ghg_LAC_circular_ippu_iso_code3.csv")),
                         "AllEnergy" : pd.read_csv(os.path.join(data_path, "ghg_LAC_energy_iso_code3.csv"))}
 
