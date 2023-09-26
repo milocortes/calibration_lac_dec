@@ -6,7 +6,7 @@ from sisepuede_calibration.calibration_lac import ModelOutputData
 
 import pandas as pd
 
-df = pd.read_csv("https://raw.githubusercontent.com/egobiernoytp/lac_decarbonization/main/ref/fake_data/fake_data_complete.csv")
+df = pd.read_csv("https://raw.githubusercontent.com/jcsyme/sisepuede/main/ref/fake_data/fake_data_complete.csv")
 
 ## Test AFOLU
 ModelOutputData.get_output_input_data_AFOLU(df, False)
